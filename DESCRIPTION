@@ -1,0 +1,24 @@
+Package: psychnet
+Title: Clean-Room Base-R Psychometric Network Estimation
+Version: 0.1.0
+Authors@R:
+    person("Mohammed", "Saqr", email = "ueflaunit@gmail.com",
+           role = c("aut", "cre"))
+Description: Estimates psychometric network models -- correlation, partial
+    correlation, EBIC-regularized Gaussian graphical models (graphical lasso),
+    Ising, and mixed graphical models -- reimplemented from first principles in
+    base R with no compiled dependencies. Each regularized estimator ships a
+    dependency-free correctness certificate (for the Gaussian graphical model,
+    the graphical-lasso stationarity / KKT residual) so a fitted network is
+    self-verifying: its distance from the unique optimum of its own convex
+    objective is reported directly, rather than trusted only because it matches
+    an external solver. The R counterpart to the 'psychaj' TypeScript library.
+License: GPL-3
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Imports:
+    stats
+Suggests:
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3

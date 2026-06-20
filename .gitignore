@@ -1,0 +1,24 @@
+# R
+.Rproj.user
+.Rhistory
+.RData
+.Ruserdata
+*.Rproj
+
+# Build artifacts
+*.tar.gz
+*.Rcheck/
+..Rcheck/
+
+# OS
+.DS_Store
+
+# Session artifacts (local-only)
+HANDOFF.md
+LEARNINGS.md
+CHANGES.md
+CLAUDE.md
+AGENTS.md
+AGENT-NOTE-*.md
+cran-comments.md
+local_testing_and_equivalence/

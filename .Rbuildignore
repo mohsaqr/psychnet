@@ -1,0 +1,13 @@
+^.*\.Rproj$
+^\.Rproj\.user$
+^\.git$
+^\.github$
+^local_testing_and_equivalence$
+^cross-check$
+^README\.Rmd$
+^LICENSE\.md$
+^\.Rbuildignore$
+^HANDOFF\.md$
+^LEARNINGS\.md$
+^CHANGES\.md$
+^CLAUDE\.md$
