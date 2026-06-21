@@ -30,15 +30,21 @@ url  <- "https://github.com/sonsoleslp/labook-data/raw/main/11_universityCovid/d
 dest <- file.path(tempdir(), "labook_universityCovid.sav")
 if (!file.exists(dest)) utils::download.file(url, dest, mode = "wb", quiet = TRUE)
 d <- haven::read_sav(dest)
-d <- d[stats::complete.cases(d), ]                      # chapter: import(...) |> drop_na()
+# The chapter's n = 6071 is the Austria subgroup (country == 0); Finland
+# (country == 1) is analysed separately and pooled for the country comparison.
+d <- d[as.numeric(d$country) == 0L, ]
+n_sample <- nrow(d)                                     # 6071, the reported sample
 
-# Six constructs = row mean of each scale's three recoded items.
-mk <- function(pre) rowMeans(d[, paste0(pre, 1:3, ".rec")])
+# Six constructs = row mean of each scale's three recoded items, averaging the
+# items that are present (na.rm = TRUE), as the chapter does.
+mk <- function(pre) rowMeans(d[, paste0(pre, 1:3, ".rec")], na.rm = TRUE)
 ad <- data.frame(Competence = mk("comp"), Autonomy = mk("auto"),
                  Motivation = mk("lm"),   Emotion  = mk("pa"),
                  Relatedness = mk("gp"),  SRL = mk("sr"))
+ad <- ad[stats::complete.cases(ad) & !apply(ad, 1L, anyNA), ]
 n  <- nrow(ad)
-cat(sprintf("n after listwise deletion = %d (chapter: 6071)\n\n", n))
+cat(sprintf("Austria subgroup: sample n = %d (chapter: 6071); network fit on %d rows with at least one item per construct\n\n",
+            n_sample, n))
 
 S <- qgraph::cor_auto(ad, verbose = FALSE)              # chapter's corMethod
 ut <- upper.tri(S)
@@ -79,8 +85,8 @@ cat(sprintf("\nCentrality stability (CS coefficient): strength %.2f, expected in
 
 # --- write a one-row result record ---
 res <- data.frame(
-  case = "LAMethods Ch.19 (university COVID)", source = "lamethods.org/book1",
-  p = ncol(P), n = n, edges = sum(P[ut] != 0),
+  case = "LAMethods Ch.19 (university COVID, Austria)", source = "lamethods.org/book1",
+  p = ncol(P), n_sample = n_sample, n_network = n, edges = sum(P[ut] != 0),
   mean_weight = round(mean(abs(P[ut])), 4),
   max_edge_delta_vs_bootnet = round(max(abs(P[ut] - B[ut])), 6),
   struct_vs_bootnet = round(mean((abs(P[ut]) > 1e-6) == (abs(B[ut]) > 1e-6)), 4),
