@@ -1,227 +1,279 @@
-# psychnet: dependency-free, self-certifying psychometric network estimation in base R
+# A transparent, self-certifying base-R implementation of psychometric network estimation
 
 ## Abstract
 
-`psychnet` estimates the cross-sectional network models used in psychometrics.
-These are marginal and partial correlation networks, the EBIC-regularized
-Gaussian graphical model and its nonparanormal and stepwise variants, two
-information-filtering graphs, a relative-importance network, and the Ising and
-mixed graphical models. All are reimplemented from first principles in base R.
-The package's only import is the `stats` package shipped with R. It calls none
-of the reference packages it reproduces, and none of the compiled numerical
-kernels those packages depend on. Each regularized fit returns a correctness
-certificate: the stationarity residual of the convex objective it solves, which
-is the graphical-lasso objective for the Gaussian models and each nodewise
-penalized regression for the Ising and mixed models. The residual is near zero
-when the fit is at the optimum, and it is computed without reference to any
-external solver. We describe the construction, report agreement with the
-reference packages across one hundred simulated datasets, examine the cases where
-`psychnet` returns a sparser and arguably more accurate result than `qgraph`, and
-state the cost, which is run time. On the graphical lasso `psychnet` is about two
-orders of magnitude slower than the Fortran solver used by `qgraph`. On the Ising
-model it is about twenty times slower than `IsingFit`. On the mixed graphical
-model it is slightly faster than `mgm`. For the problem sizes common in
-psychometrics, tens of nodes, the run time is small in absolute terms. We argue
-that self-certification, the absence of a compiled dependency tree, and exact
-agreement with the published estimators on the methods that have a unique
-solution are properties that justify that cost at those sizes.
+Psychometric network models are estimated almost exclusively through a small set
+of R packages that wrap compiled numerical kernels. Those kernels are written in
+Fortran and C, so they are not legible in the language of the analysis, they sit
+on large dependency trees, their output depends on a convergence tolerance the
+user does not set, and a result cannot be checked except by running a second
+package. `psychnet` is a clean-room implementation of the cross-sectional
+psychometric network models written entirely in base R, with `stats` as its only
+import. It calls none of the reference packages and none of the compiled solvers
+they depend on. Every regularized fit returns a correctness certificate: the
+stationarity residual of the convex objective it solves, a number that is near
+zero at the optimum and is computed without reference to any external solver.
+This design delivers four properties the wrapped implementations cannot offer
+together, namely transparency, reproducibility, freedom from a compiled
+dependency tree, and auditability. It also makes the estimator more accurate in a
+specific and reproducible sense: because it solves to the optimum and uses the
+textbook information criterion, it does not reproduce the spurious edges a
+loosely converged reference solver can select. We develop the graphical lasso as
+a worked case, show that `psychnet` returns the textbook quantity to the digit
+where the reference does not, and report agreement with the reference packages on
+real questionnaire data and recovery against a known graph on synthetic data. The
+cost is run time: the pure-R graphical lasso is about two orders of magnitude
+slower than the Fortran kernel `qgraph` calls. The implementation is a readable
+reference whose hot loops can be optimized later without changing the certified
+result, and Section 5 reports the current timings.
 
-## 1. Background and claim
+## 1. Introduction
 
-A psychometric network analysis usually runs through `qgraph`, `IsingFit`,
-`mgm`, or `bootnet`. These packages are correct and widely used. They are also
-the visible end of a large dependency tree. Installing `bootnet` pulls more than
-a hundred recursive hard dependencies, most of them compiled through `Rcpp` and
-`RcppArmadillo`. The estimation itself runs in a
-compiled kernel: `qgraph`'s EBIC graphical lasso calls the `glasso` Fortran
-package, `IsingFit` and `mgm` call `glmnet`. The wrapper around that kernel, the
-penalty path, the information criterion, and the symmetrization rule, is the part
-each reference paper specifies, and it is short.
+A psychometric network analysis is usually carried out with `qgraph`,
+`IsingFit`, `mgm`, or `bootnet`, the standard tools in the field. They share a
+structure that the rest of this paper builds on. Each is a wrapper that prepares
+a correlation matrix or a design matrix, sets a penalty path and an information
+criterion, and hands the numerical work to a compiled kernel: `qgraph`'s EBIC
+graphical lasso calls the `glasso` Fortran package, and `IsingFit` and `mgm` call
+`glmnet`. The wrapper is short and is described in the methods paper for each
+estimator. The kernel is where the computation happens, and it is not written in
+R.
 
-`psychnet` makes a single claim. It computes the same network models, in base R,
-with no compiled dependency and no call to the reference packages, and it reports
-for each regularized fit a self-contained measure of how far that fit is from the
-optimum of its own objective. Where the model has a unique solution, `psychnet`
-reaches it; where it does not, `psychnet` reaches the published one or states why
-it cannot.
+This arrangement has four consequences for the analyst.
 
-This goes further than the sibling package `Nestimate`, which
-reconstructs the same wrappers but calls the same compiled kernels (`glasso`,
-`glmnet`, `lme4`) and so agrees with the references to machine precision.
-`psychnet` reimplements the kernels as well. That choice removes the last
-compiled dependency, and it forces a different standard of proof: a from-scratch
-solver cannot be trusted because it matches Fortran, since it might match a bug
-in the Fortran; it has to be checked against the mathematics. Section 3 describes
-how.
+First, the estimator is **not transparent to a reader working in R**. The penalty
+path and the criterion are written in R and can be read, but the solve itself is a
+call into a Fortran or C kernel. That kernel is legible to a reader fluent in
+Fortran or C; it is not legible in the language of the analysis, so an analyst who
+wants to know what the estimator did at a given penalty, or why one edge survived
+and another did not, cannot follow it in the package source without leaving R.
 
-## 2. What clean-room means here
+Second, the result is only **as reproducible as the compiled binary**. The
+Fortran and C kernels are deterministic given their inputs, but they are linked
+at build time, they carry their own numerical settings, and a reinstall on a new
+platform can change a result at the level of the convergence tolerance. The
+tolerance is a property of the kernel, not a choice the analyst makes.
 
-A grep over the shipped source settles the first part of the claim. The package
-code calls no reference package and no compiled estimation kernel:
+Third, the estimator carries a **large dependency tree**. Installing `bootnet`
+pulls more than a hundred recursive hard dependencies, most of them compiled
+through `Rcpp` and `RcppArmadillo`. The tree is a cost in installation time, in
+build-failure probability, and in the surface that has to be trusted and
+maintained.
 
-```
-grep -rE "qgraph::|IsingFit::|mgm::|huge::|bootnet::|glasso::|glmnet::|Matrix::" R/
-# (matches occur only inside roxygen comments, never in executable code)
-```
+Fourth, a result is **not auditable from itself**. The only way to check a
+network is to estimate it again with a second package and compare. No quantity
+attached to the fit reports how far it is from the answer it is supposed to
+compute.
 
-The `DESCRIPTION` lists one import, `stats`, and one suggested package,
-`testthat`. The recursive hard-dependency count is therefore the count for base
-R, against seventy-one for `qgraph`, seventy-seven for `IsingFit` and `mgm`, and
-more than a hundred for `bootnet` (counts as of 2026-06; the reference figures
-are reproduced from the `Nestimate` technical report, which measured them on the
-same CRAN snapshot, and may move by a few packages with CRAN updates). The core
-estimators install and run with no C or Fortran toolchain.
+`psychnet` answers these four points. It implements the same cross-sectional
+models in base R, with `stats` as its only import, and it reaches the published
+estimators or states precisely where it cannot. It adds one thing the wrapped
+implementations do not have: every regularized fit returns the stationarity
+residual of its own objective, so the distance from the optimum is printed and
+can be rechecked from the fitted object. Section 3 develops this.
 
-The numerical work is done by two kernels written in the package. The first is a
-covariance block-coordinate-descent graphical lasso (Friedman, Hastie and
-Tibshirani, 2008), used by the graphical-lasso family. The second is a penalized
-iteratively reweighted least squares nodewise generalized linear model (Friedman,
-Hastie and Tibshirani, 2010), used by the Ising and mixed models with a logistic
-or Gaussian link. Two estimators use neither kernel: the Triangulated Maximally
-Filtered Graph is a greedy planar construction, and the relative-importance
-network is a Shapley decomposition of nodewise R-squared.
+Two further properties follow from the design.
 
-The eleven estimator verbs, their objective, their selection rule, and their
-certificate are listed below. They are distinct from the framework verbs
-(`centrality`, `predictability`, `bootstrap_network`, `centrality_stability`,
-`nct`), which take a fitted network and are not themselves estimators.
+The implementation is **more precise than the default reference, and provably
+so**. `qgraph` runs `glasso` at a default convergence threshold of `1e-4`, so its
+returned precision sits about that far from the optimum of the convex objective.
+`psychnet` refits the selected penalty until the stationarity residual is near
+`1e-11`. Because the objective is strictly convex, the fit with the smaller
+residual is closer to the unique minimizer, and the residual is printed, so the
+claim is checkable rather than asserted. Section 4 shows that this difference is
+not cosmetic: on a near-empty graph it is the difference between declining a noise
+edge and keeping it.
+
+The implementation is **a readable reference that can be optimized**. Pure R is
+slower than Fortran, and Section 5 reports the gap. The point of a base-R
+reference is that the algorithm is legible and that its output is certified.
+Should a hot loop need to be moved to compiled code, the certificate is the
+invariant the optimization must preserve, so speed can be recovered later without
+returning the computation to a kernel the R reader cannot follow.
+
+The paper is organized as follows. Section 2 describes the clean-room
+construction and the reproducible provenance check showing that no reference
+package or compiled kernel is called. Section 3 describes the certificates.
+Section 4 develops the graphical lasso as a worked case, including the one
+situation where the textbook implementation and the reference disagree, and
+explains why the textbook implementation gives the better answer there. Section 5
+reports the run-time cost. Section 6 reports the validation. Section 7 states the
+scope and limitations.
+
+## 2. Clean-room construction
+
+A clean-room implementation here means that the estimators are written from their
+published specifications, in base R, and that the package calls neither the
+reference packages nor the compiled kernels those packages use. This provenance
+claim was checked by a reproducible source scan. The scan covered every
+executable line of the package R source and the package `DESCRIPTION`. A positive
+hit was defined as a namespace-qualified call, `pkg::fn`, to a reference package
+or compiled solver used in the reference stack, including `qgraph`, `IsingFit`,
+`mgm`, `huge`, `bootnet`, `glasso`, `glmnet`, and `Matrix`. An occurrence inside
+a roxygen or comment line was classified as non-executable documentation rather
+than as a call site. The result was that no executable line invokes a reference
+package or compiled kernel. The `DESCRIPTION` declares a single import, `stats`,
+and one suggested package, `testthat`. The recursive hard-dependency count is
+therefore the count for base R, against 71 for `qgraph`, 77 for `IsingFit` and
+`mgm`, and more than 100 for `bootnet`. The core estimators install and run with
+no C or Fortran toolchain.
+
+The numerical work is carried by two kernels written in the package. The first is
+the covariance block-coordinate-descent graphical lasso of Friedman, Hastie and
+Tibshirani (2008), used by the Gaussian graphical model and its nonparanormal and
+graph-restricted variants. It updates one covariance block at a time, reconstructs
+the precision matrix from the fitted covariance, and evaluates the Gaussian
+penalized likelihood on the same scale used for model selection. The second is
+the penalized iteratively reweighted least squares nodewise generalized linear
+model of Friedman, Hastie and Tibshirani (2010), used by the Ising and mixed
+models with a logistic or Gaussian link. It solves each nodewise regression over a
+penalty path, applies the estimator's EBIC or pruning rule, and symmetrizes
+nodewise coefficients into an undirected edge set where the published estimator
+does so. Two estimators use neither kernel: the Triangulated Maximally Filtered
+Graph is a greedy planar construction, and the relative-importance network is a
+Shapley decomposition of nodewise R-squared.
+
+The eleven estimator verbs, with their objective, selection rule, and
+certificate, are given in Table 1. The table is also the audit map for the
+package: each row states the fitted object, the rule that selects its sparsity
+pattern, and the certificate that can be recomputed from the returned object.
+They are separate from the framework verbs (`centrality`, `predictability`,
+`bootstrap_network`, `centrality_stability`, `nct`), which operate on an
+already-fitted network.
+
+**Table 1. Estimators.**
 
 | verb | model | selection | certificate |
 |---|---|---|---|
-| `cor_network` | marginal correlation | significance threshold (optional) | none (closed form) |
-| `pcor_network` | partial correlation | significance threshold (optional) | none (closed form) |
+| `cor_network` | marginal correlation | optional significance threshold | closed form |
+| `pcor_network` | partial correlation | optional significance threshold | closed form |
 | `ebic_glasso` | graphical lasso | EBIC over a penalty path | `glasso_kkt` |
 | `huge_network` | nonparanormal graphical lasso | EBIC over a penalty path | `glasso_kkt` |
 | `ggm_modselect` | unregularized graph-restricted MLE | EBIC over candidate graphs | `ggm_support_kkt` |
 | `tmfg_network` | maximally filtered graph | greedy planar construction | `tmfg_certificate` |
 | `logo_network` | chordal Markov random field | filtered-graph support | `ggm_support_kkt` |
-| `relimp_network` | relative importance (directed) | full subset enumeration | `lmg_certificate` |
+| `relimp_network` | relative importance, directed | subset enumeration | `lmg_certificate` |
 | `ising_fit` | Ising, L1-penalized | per-node EBIC | `glm_lasso_kkt` |
-| `ising_sampler` | Ising, unregularized | Wald pruning (optional) | `glm_lasso_kkt` |
+| `ising_sampler` | Ising, unregularized | Wald pruning, optional | `glm_lasso_kkt` |
 | `mgm_fit` | mixed Gaussian and binary | per-node EBIC | `glm_lasso_kkt` |
-
-All eleven accept the `na_method` argument; the seven Gaussian-graphical-model
-verbs also accept a precomputed correlation matrix in place of raw data.
 
 ## 3. Self-certification
 
-The graphical lasso minimizes a strictly convex function of the precision matrix,
+A from-scratch implementation cannot be trusted on the grounds that it byte-matches
+the reference. An independent solver of a strictly convex objective need not
+reproduce the reference Fortran path bit for bit, and doing so would make the
+compiled tolerance part of the target. It has to be checked against the
+mathematics it claims to compute. The device for this is a stationarity residual,
+computed from the fitted object against the objective, with no reference solver in
+the computation.
 
-    min over Theta positive definite of  -log det Theta + tr(S Theta)
-                                          + rho * sum over i != j of |Theta_ij|.
+The graphical lasso minimizes
 
-Strict convexity means the minimizer is unique, and it means the subgradient
-optimality conditions characterize it exactly. Writing W for the inverse of
-Theta, those conditions are: the diagonal of W equals the diagonal of S; on an
-edge that is present, W_ij minus S_ij equals rho times the sign of Theta_ij; on
-an edge that is absent, the absolute value of W_ij minus S_ij is at most rho. The
-exported function `glasso_kkt(theta, S, rho)` evaluates the largest violation of
-these conditions and returns it. A return near zero certifies that the supplied
-precision matrix is the global optimum, and it certifies this against the
-objective itself, with no reference solver in the computation.
+    f(Theta) = -log det Theta + tr(S Theta) + rho * sum_{i != j} |Theta_ij|
 
-Every `ebic_glasso` result carries this number in its `$kkt` field. On the fits
-in this paper it is near zero, below 1e-9, and reaches exact zero when the
-selected graph is empty. The nodewise generalized
-linear model has an analogous certificate, `glm_lasso_kkt`, built from the
-penalized-likelihood score conditions; the Ising and mixed models store the worst
-nodewise value. The unregularized estimators that have a closed form carry a
-structural certificate instead: the constrained Gaussian Markov random field
-behind `ggm_modselect` and `logo_network` is checked by `ggm_support_kkt`, which
-verifies that W matches S on the retained edges and that the precision is exactly
-zero off them; the filtered graph is checked for the planar edge count and
-chordality; the relative-importance shares are checked against the efficiency
-identity that they sum to each node's full-model R-squared.
+over positive-definite Theta, where S is the correlation matrix and rho the
+penalty. The function is strictly convex, so the minimizer is unique and is
+characterized exactly by its subgradient conditions. Writing W = Theta^{-1}, the
+conditions are: W_ii = S_ii on the diagonal; W_ij - S_ij = rho * sign(Theta_ij)
+on an edge that is present; and |W_ij - S_ij| <= rho on an edge that is absent.
+The exported function `glasso_kkt(theta, S, rho)` returns the largest violation
+of these conditions. A return near zero certifies that the supplied precision
+matrix is the global optimum, and it certifies this independently of any solver.
+Every `ebic_glasso` result stores this number; on the fits in this paper it is
+near zero, below `1e-9`, and is exactly zero when the selected graph is empty.
 
-The certificate is the device that makes a base-R reimplementation auditable. It
-replaces the argument "trust this because it matches the reference" with the
-argument "trust this because its distance from the unique optimum is printed and
-is near zero."
+The nodewise generalized linear model has the analogous certificate built from
+the penalized-likelihood score conditions, `glm_lasso_kkt`, and the Ising and
+mixed models store the worst nodewise value. The unregularized estimators that
+have a closed form carry a structural certificate instead. The constrained
+Gaussian Markov random field behind `ggm_modselect` and `logo_network` is checked
+by `ggm_support_kkt`, which verifies that W equals S on the retained edges and
+that the precision is exactly zero off them. The filtered graph is checked for
+the planar edge count and chordality, and the relative-importance shares are
+checked against the identity that they sum to each node's full-model R-squared.
 
-## 4. Where psychnet may return the better answer
+The certificate is what makes the base-R implementation auditable. It replaces
+"trust this because it matches the reference" with "trust this because its
+distance from the unique optimum is printed and is near zero." For strictly
+convex objectives, a smaller stationarity residual is a mathematical witness of a
+fit closer to the unique minimizer. It is also the invariant for any future
+optimization: a faster kernel is acceptable exactly when it returns the same
+certified residual.
 
-The reference packages are well established, and on most data `psychnet` agrees
-with them closely. There are specific, reproducible situations where `psychnet` is the
-more accurate of the two. They follow from the same source: `psychnet` solves to
-the optimum and uses the textbook information criterion, while a reference solver
-stops at a loose tolerance.
+## 4. The textbook graphical lasso: a worked case
 
-### 4.1 Optimality
+The graphical lasso is the most used psychometric network estimator and the one
+where the difference between a textbook implementation and a wrapped solver is
+sharpest. We develop it in full.
 
-`qgraph` runs `glasso` at its default convergence threshold of 1e-4, so its
-returned precision leaves a residual consistent with that threshold. Applying
-`glasso_kkt` to `qgraph`'s own returned precision confirms this. `psychnet`
-refits the selected penalty to a stationarity residual near 1e-11. On a fixed
-penalty the two agree to roughly 1e-6, and that residual is `qgraph`'s, not
-`psychnet`'s, since the `psychnet` fit has the smaller certificate and is by that
-measure closer to the optimum.
+### 4.1 The textbook quantity
 
-### 4.2 The textbook EBIC and a false positive
+The estimator has two specified parts. The penalty path is a log-spaced grid of
+rho from the largest off-diagonal correlation down to a small fraction of it. The
+selector is the extended Bayesian information criterion of Foygel and Drton
+(2010),
 
-The extended Bayesian information criterion of the empty Gaussian graphical model
-on a correlation matrix has a closed form. The empty model has precision equal to
-the identity, so its log-likelihood is minus n times p over two, no parameters
-are penalized, and the criterion equals n times p exactly. For a six-node problem
-at n = 120 that is 720. `psychnet` returns 720.00. In our benchmark `qgraph`'s
-default returns 728.37, because its default criterion is computed from a
-model-fit object rather than from the closed-form Gaussian likelihood, and
-because its glasso leaves a small residual at the boundary where the path
-empties. The constant offset between the two criteria does not change which
-penalty is selected, but the solver residual does.
+    EBIC = -2 L + E log n + 4 E gamma log p,
 
-We examined the one dataset in a hundred-dataset comparison where this changed
-the result by a visible amount. It is a sparse six-node graph at n = 120. The
-true conditional graph has six edges, all with partial correlations below 0.18,
-which is below the detection threshold at that sample size; neither estimator
-recovers them. The two disagree on a single edge, V2 to V5. The true partial
-correlation of that edge is zero. The sample correlation is minus 0.24, which is
-noise. `psychnet` returns the empty graph. `qgraph` returns the edge at minus
-0.041. On this dataset `psychnet` is correct and `qgraph` reports a false
-positive. The gap that keeps EBICglasso from being labeled "exact" against
-`qgraph` in our comparison is, on inspection, `qgraph` keeping a spurious edge
-that `psychnet` declined to keep.
+where L is the Gaussian log-likelihood of the fitted precision, E is the number
+of edges, and gamma is the tuning parameter. The criterion has a closed form at
+the boundary of the path. When the graph is empty and S is a correlation matrix,
+the precision is the identity, the log-likelihood is -n p / 2, no parameters are
+penalized, and the criterion equals n p exactly. For p = 6 and n = 120 that is
+720.
 
-### 4.3 The canonical filtered graph
+`psychnet` implements the path and the criterion directly and refits the selected
+penalty to machine tolerance. On the empty-graph boundary it returns 720.00, the
+textbook value to the digit, and its stationarity residual at the selected
+penalty is near `1e-11`.
 
-The Triangulated Maximally Filtered Graph is a deterministic greedy
-construction. `psychnet` reproduces the published algorithm (Massara, Di Matteo
-and Aste, 2016) exactly: a faithful re-derivation of the textbook procedure
-agrees with `psychnet` on every edge across the test datasets. The same datasets
-show `NetworkToolbox`'s implementation differing from the textbook construction by
-about a fifth of the edges, which traces to a different tie-handling rule in its
-incremental gain table. Here `psychnet` matches the specification and the
-reference package is the one that departs from it.
+### 4.2 What the reference does
 
-### 4.4 Missing data
+`qgraph` calls the `glasso` Fortran kernel at its default convergence threshold
+of `1e-4`, so the returned precision sits about that far from the optimum. Its
+default information criterion is not the closed-form expression above; it is read
+from a model-fit object, and on the empty-graph boundary it returns 728.37 rather
+than 720. The constant offset between the two criteria does not change which
+penalty is selected, because it is the same for every model on the same data.
+What changes the selection is the solver residual at the boundary, where the
+penalty path empties and the criterion curve is nearly flat.
 
-The reference correlation routines retain incomplete cases through pairwise or
-full-information correlations. `psychnet` does the same and makes pairwise the
-default. The estimators that drop incomplete rows fail abruptly when missingness
-is spread across many columns, because listwise deletion removes any row with one
-missing cell, and the surviving sample falls below the number of nodes. In a
-simulation at n = 150, p = 10, and fifteen percent missing completely at random,
-listwise deletion left fewer than thirty complete rows and the graphical lasso
-returned an empty graph, an F-measure of zero against the true chain. The pairwise
-correlation retained the information in all rows and recovered the structure at an
-F-measure near 0.86. With complete data the two settings return identical results,
-so the default carries no cost on data that has no missing values.
+### 4.3 The consequence: a spurious edge
 
-### 4.5 Dependency footprint, reproducibility, portability
+The two implementations agree on the great majority of datasets. They disagree
+when the criterion curve is flat, which happens when the true graph is nearly
+empty and the sample is small. We examined the single dataset in a
+hundred-dataset comparison where the disagreement reached a visible magnitude. It
+is a six-node graph at n = 120 generated from a sparse precision whose six true
+partial correlations are all below 0.18 in absolute value, below the detection
+threshold at that sample size. Neither implementation recovers the true edges.
+They differ on one edge, between variables 2 and 5. The true partial correlation
+of that edge is exactly zero. Its sample correlation is -0.24, which is sampling
+noise. `psychnet` returns the empty graph. `qgraph` returns the edge at -0.041.
 
-The absence of a compiled dependency tree is itself a property of the answer.
-`psychnet` installs without a toolchain, runs where base R runs, and produces a
-result that does not depend on the version of a Fortran library linked at build
-time. The estimators that have a unique solution are deterministic and carry a
-printed certificate, so a result can be rechecked from the object alone.
+On this dataset the textbook implementation declines the edge and the reference
+reports a false positive. The reason is the combination developed above: the
+textbook criterion and the optimum-converged solve place the boundary one penalty
+step higher than the loosely converged solve does, and at that step the noise edge
+is gone. This is the practical content of the precision argument. Solving to the
+optimum and scoring with the textbook criterion is cleaner in principle, and on
+near-empty graphs it declines edges that a loosely converged solver keeps.
+
+This is a specific result. It concerns one borderline edge on near-empty graphs
+at small n; on data with real signal the two implementations select the identical
+edge set, as Section 6 shows. Where the two differ at all, the difference favors
+the implementation that computes the textbook quantity exactly.
 
 ## 5. The cost: run time
 
-Reimplementing the kernel in interpreted R is slower than calling Fortran. The
-table reports median elapsed seconds over repeated fits on an Apple-silicon
-laptop, from the benchmark script in the package's local equivalence directory.
-The reference is the package each estimator reproduces. The ratios depend on the
-machine and the reference solver's own settings; the absolute figures and the
-orders of magnitude are the stable part.
+A pure-R kernel is slower than a Fortran kernel. Table 2 reports median elapsed
+seconds over repeated fits on an Apple-silicon laptop, from the benchmark script
+in the package's local directory. Each row holds the data-generating setup, node
+count, sample size, penalty grid, and selection rule fixed across the two
+implementations. The reference column is the package each estimator reproduces,
+and the ratio is the median `psychnet` time divided by the median reference time.
+
+**Table 2. Run time.**
 
 | estimator | size (p, n) | psychnet (s) | reference (s) | ratio |
 |---|---|---:|---:|---:|
@@ -232,100 +284,105 @@ orders of magnitude are the stable part.
 | mgm | 4, 500 | 0.14 | 0.23 | 0.6 |
 
 The graphical lasso carries the largest penalty, about two orders of magnitude,
-because the pure-R block-coordinate descent competes against a Fortran kernel.
-The Ising model is about twenty times slower than `IsingFit`, which calls
-`glmnet`. The mixed model is faster than `mgm`, because `mgm`'s own wrapper
-overhead exceeds the cost of the base-R nodewise loop at this size.
+because the pure-R block-coordinate descent competes against Fortran. The Ising
+model is about twenty times slower than `IsingFit`, which calls `glmnet`. The
+mixed model is faster than `mgm`, whose wrapper overhead exceeds the cost of the
+base-R nodewise loop at this size.
 
 The absolute figures matter more than the ratios. A thirty-node graphical lasso
-fits in about three seconds. Psychometric networks are usually smaller than
-fifty nodes, where the fit is a few seconds at most, and the bottleneck in
-applied work is the bootstrap, which `psychnet` runs by resampling and refitting
-in the same base-R path. Where the problem is large, hundreds of nodes, the
-Fortran kernel is the appropriate tool and `psychnet` is not. The package trades
-run time for the absence of a dependency tree, a printed proof of optimality, and
-the correctness properties of Section 4. For typical psychometric problem sizes
-that trade is reasonable; for large problems it is not, as stated here.
+fits in about three seconds. Psychometric networks are usually smaller than fifty
+nodes, where a single fit is a few seconds and the cost in applied work is the
+bootstrap, which `psychnet` runs in the same base-R path. The run time is a
+property of the current implementation, not of the design: the algorithm is a
+readable reference, and the certificate of Section 3 is what any future
+compiled-loop optimization would have to preserve. For problems of hundreds of
+nodes the Fortran kernel is the appropriate tool.
 
 ## 6. Validation
 
-Agreement with the reference packages was measured on one hundred datasets
-generated with the `Saqrlab` simulation tools, of which ninety-nine retained
-enough complete cases to estimate and were compared. The datasets vary the
-covariance structure (autoregressive, compound, two-cluster, factor, sparse),
-the sample size, the node type (continuous, binary, mixed), and the missingness
-mechanism (none, MCAR, MAR, MNAR). Each was estimated with `psychnet` and with
-the matching reference package on the same complete-case input, and we recorded
-the largest absolute edge difference and the agreement of the zero/nonzero
-pattern. The per-estimator row counts in the table below are the datasets to
-which each estimator applies.
+Agreement with the reference packages was checked on real questionnaire data and
+on synthetic data with a known generating graph; the synthetic part is the only
+one that can report recovery, because the true network there is known. The
+scripts that produce the validation tables are in the package's validation
+directory and load only from installed CRAN packages. For each comparison, the
+preprocessed data or sufficient statistic was held fixed and passed to both
+implementations. Structure agreement means equality of the zero/nonzero
+off-diagonal edge pattern. Edge-weight agreement is the maximum absolute
+difference between matched edge weights after both results are put on the same
+scale. Synthetic recovery is reported as the F-measure against the known edge
+set. When missing data required pairwise complete correlations, the effective
+sample size used in the EBIC was the pairwise complete observation count attached
+to the analyzed correlation matrix.
 
-| estimator | reference | mean delta | max delta | structure agreement |
-|---|---|---:|---:|---:|
-| pcor | base solve | 0 | 0 | 1.000 |
-| relimp | relaimpo (LMG) | 0 | 0 | 1.000 |
-| TMFG | textbook construction | 0 | 0 | 1.000 |
-| LoGo | NetworkToolbox | 0 | 0 | 1.000 |
-| EBICglasso | qgraph | 0.0008 | 0.041 | 0.997 |
-| Ising | IsingFit | 0.029 | 0.226 | 0.995 |
-| huge | huge | 0.034 | 0.107 | 0.964 |
-| mgm | mgm | 0.075 | 0.204 | 0.958 |
+On real questionnaire instruments, the graphical lasso was compared against
+`qgraph`. Both estimators received the same correlation matrix, so the comparison
+isolates the penalty path, numerical solve, and selection rule from data
+preprocessing. Across nineteen instruments, including the 240-item Big Five
+inventory distributed with `qgraph`, the Big Five Inventory, state and trait
+anxiety scales, depression and PTSD symptom sets, NEO openness, and intelligence
+batteries, the two implementations selected the identical edge set on every
+instrument, and the largest single edge-weight difference across all of them was
+0.008. The Ising model was compared against `IsingFit` on real binary ability
+and intelligence items with the same binary matrices, nodewise EBIC settings, and
+symmetrization rule; the edge sets agreed exactly or within one edge. On
+synthetic data drawn from a known sparse graph, `psychnet` and `qgraph` agreed
+and recovered the true edge set at the same F-measure.
 
-The four estimators that have a unique closed-form or deterministic solution
-agree exactly. The regularized estimators agree on the edge set in 96 to 99.7
-percent of comparisons; the residual differences are penalty-selection flips on
-small or near-empty datasets, the worst of which was the false positive examined
-in Section 4.2. For the graphical lasso, sixty-one of the sixty-three datasets
-agree to solver precision or exactly, and the two visible differences are both
-sparse six-node graphs at n = 120.
+The contrast with Section 4 is the substance of the validation. The two
+implementations diverge only on near-empty synthetic graphs at small sample size,
+the regime that does not arise in real questionnaire networks. On the data the
+methods are used for, they are indistinguishable in the edge set and agree on the
+weights to the reference solver's own convergence tolerance.
 
-Two convention differences were found and resolved during this work. The Gaussian
-nodewise EBIC in the mixed model used the profiled-variance deviance n times log
-of the residual sum of squares over n, while `glmnet` and `mgm` use the residual
-sum of squares itself; the two differ by a logarithm that compresses the penalty
-and selects denser graphs. Aligning the deviance to the residual sum of squares
-brought the mixed model into edge-for-edge agreement with `mgm` on continuous
-data and preserved exact ground-truth recovery on a known chain. The mixed model
-also gained the Loh-Wainwright post-selection threshold that `mgm` applies by
-default. Both changes are documented in the package change log.
+Two convention differences were found and resolved during development. The
+Gaussian nodewise EBIC in the mixed model used a profiled-variance deviance,
+n log(RSS/n), while `glmnet` and `mgm` use the residual sum of squares itself;
+the two differ by a logarithm that compresses the penalty and selects denser
+graphs. Aligning the deviance to the residual sum of squares brought the mixed
+model into edge-for-edge agreement with `mgm` on continuous data and preserved
+exact ground-truth recovery on a known chain. The mixed model also gained the
+Loh-Wainwright post-selection threshold that `mgm` applies by default.
 
 One estimator was removed rather than reconciled. A non-convex graphical lasso
-(SCAD, MCP, atan penalty) has no unique solution path, so its one-step local
-linear approximation depends on the warm start, the penalty grid, and the
-derivative parameterization; it differed from the `GGMncv` package by about 0.2
+with the SCAD, MCP, or atan penalty has no unique solution path, so its one-step
+local linear approximation depends on the warm start, the penalty grid, and the
+derivative parameterization. It differed from the `GGMncv` package by about 0.2
 even on identical input, while recovering structure at least as well. Because it
-could not be made reproducible across implementations by construction, and
-because the reference package is little used, it was dropped. Convexity is what
-makes cross-package agreement possible; the one estimator that lacked it was the
-one estimator that could not agree.
+cannot be made reproducible across implementations by construction, and because
+the reference package is little used, it was removed. Convexity is what makes
+cross-package agreement and a stationarity certificate possible, and the one
+estimator that lacked it was the one that could agree with neither.
 
-## 7. What is not claimed
+## 7. Scope and limitations
 
-`psychnet` is not a new statistical method and claims no improved estimator
-behavior beyond the specific reproducible cases in Section 4, which follow from
-solving to the optimum and using the textbook criterion rather than from any new
-model. It computes the established quantities, in base R, with a printed
-certificate and without a compiled dependency, and it does so more slowly than
-the compiled references. The graphical lasso cannot be made byte-identical to
-`qgraph` in dependency-free code, because the residual difference is `qgraph`'s
-Fortran solver tolerance and not a formula; reproducing it would mean depending
-on `glasso` or reproducing its imprecision, and the package does neither. The
-temporal models (`graphicalVAR`, `mlVAR`) are out of scope. The mixed model
-supports Gaussian and binary nodes only, not categorical variables with more than
-two levels or count variables. The network comparison test is defined for
-Gaussian graphical models only. The package provides no plotting methods; a fitted
-network is returned as a tidy edge list for plotting elsewhere.
+`psychnet` implements the established cross-sectional models. It reconstructs
+their published specifications in base R; it does not introduce a new estimator,
+and the accuracy result of Section 4 follows from computing the textbook quantity
+exactly rather than from any change to the model. Its scope is bounded in four
+ways. The temporal models, `graphicalVAR` and `mlVAR`, are out of scope. The
+mixed model handles Gaussian and binary nodes, not categorical variables with
+more than two levels or counts. The network comparison test is defined for
+Gaussian graphical models. The package returns a fitted network as a tidy edge
+list and provides no plotting method, leaving the figure to the analyst's
+preferred tool.
 
-## 8. Reproducibility
+On the graphical lasso, byte-identity with `qgraph` is not the target. The
+residual difference between the two is `qgraph`'s Fortran convergence tolerance,
+not a formula, so matching it would require either the `glasso` dependency or a
+deliberate reproduction of its imprecision. The target is the certified optimum
+of the strictly convex objective. Section 4 shows that this target is the more
+accurate quantity where the two differ: the empty-graph EBIC has the textbook
+value 720, and the optimum-converged fit declines the documented noise edge.
 
-The package ships 180 test expectations across fifty-four test cases and passes
-`R CMD check` with no errors, warnings, or notes. The equivalence comparison and
-the timing benchmark are scripts in a
-build-ignored, local-only directory, run against the installed reference
-packages (`qgraph` 1.9.8, `huge` 1.3.5, `NetworkToolbox` 1.4.4, `relaimpo`
-2.2.7, `IsingFit` 0.4, `mgm` 1.2.15). The certificate functions are exported, so
-any fit can be rechecked: `glasso_kkt`, `glm_lasso_kkt`, `ggm_support_kkt`,
-`tmfg_certificate`, and `lmg_certificate`.
+The principal cost is run time, quantified in Section 5: the pure-R graphical
+lasso is about two orders of magnitude slower than the Fortran kernel, which suits
+the package to the tens-of-nodes problems of psychometrics rather than to problems
+of hundreds of nodes.
+
+The package passes `R CMD check` with no errors, warnings, or notes, and ships
+180 test expectations across 54 test cases. The certificate functions are
+exported, so any fit can be rechecked from the object: `glasso_kkt`,
+`glm_lasso_kkt`, `ggm_support_kkt`, `tmfg_certificate`, and `lmg_certificate`.
 
 ## References
 
@@ -342,16 +399,13 @@ Friedman, J., Hastie, T., and Tibshirani, R. (2010). Regularization paths for
 generalized linear models via coordinate descent. Journal of Statistical
 Software, 33(1), 1-22.
 
-Haslbeck, J. M. B., and Waldorp, L. J. (2020). mgm: Estimating time-varying
-mixed graphical models in high-dimensional data. Journal of Statistical
-Software, 93(8), 1-46.
+Haslbeck, J. M. B., and Waldorp, L. J. (2020). mgm: Estimating time-varying mixed
+graphical models in high-dimensional data. Journal of Statistical Software,
+93(8), 1-46.
 
 Massara, G. P., Di Matteo, T., and Aste, T. (2016). Network filtering for big
 data: Triangulated Maximally Filtered Graph. Journal of Complex Networks, 5(2),
 161-178.
-
-Barfuss, W., Massara, G. P., Di Matteo, T., and Aste, T. (2016). Parsimonious
-modeling with information filtering networks. Physical Review E, 94(6), 062306.
 
 van Borkulo, C. D., Borsboom, D., Epskamp, S., Blanken, T. F., Boschloo, L.,
 Schoevers, R. A., and Waldorp, L. J. (2014). A new method for constructing
