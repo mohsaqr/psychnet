@@ -11,6 +11,8 @@ mgm_fit(
   nlambda = 100L,
   lambda_min_ratio = 0.01,
   threshold = c("LW", "HW", "none"),
+  rule = c("AND", "OR"),
+  weights = NULL,
   na_method = c("pairwise", "listwise"),
   labels = NULL
 )
@@ -30,6 +32,11 @@ binary); auto-detected if \code{NULL}.}
 
 \item{threshold}{Post-selection coefficient threshold: \code{"LW"} (default),
 \code{"HW"}, or \code{"none"}, matching \code{mgm::mgm()}.}
+
+\item{rule}{Edge-combination rule: \code{"AND"} (default) or \code{"OR"}.}
+
+\item{weights}{Optional non-negative observation weights, one per row of the
+(NA-prepared) data. \code{NULL} (default) is unweighted.}
 
 \item{na_method}{Missing-data handling: \code{"pairwise"} (default) single-imputes
 each column over its observed values (mean for continuous, mode for binary),

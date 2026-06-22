@@ -10,6 +10,8 @@ ising_fit(
   rule = c("AND", "OR"),
   nlambda = 100L,
   lambda_min_ratio = 0.01,
+  min_sum = NULL,
+  weights = NULL,
   na_method = c("pairwise", "listwise"),
   labels = NULL
 )
@@ -24,6 +26,12 @@ ising_fit(
 \item{nlambda}{Number of penalties per nodewise path. Default 100.}
 
 \item{lambda_min_ratio}{Smallest penalty as a fraction of the largest.}
+
+\item{min_sum}{Minimum row sum-score (number of endorsed items); rows below
+it are dropped before fitting. \code{NULL} (default) keeps every row.}
+
+\item{weights}{Optional non-negative observation weights, one per retained
+row. \code{NULL} (default) is unweighted.}
 
 \item{na_method}{Missing-data handling: \code{"pairwise"} (default) single-imputes
 each column over its observed values (mode for binary), keeping the full

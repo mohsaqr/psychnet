@@ -172,3 +172,42 @@ test_that("estimate_network does not override ising/mgm native gamma (0.25)", {
   expect_equal(estimate_network(b, "ising", gamma = 0.5)$graph,
                ising_fit(b, gamma = 0.5)$graph)                               # override
 })
+
+# ---- closed reference gaps -------------------------------------------------
+
+test_that("mgm_fit gains an AND/OR rule (OR keeps at least as many edges)", {
+  set.seed(11)
+  f <- matrix(stats::rnorm(2000 * 3), 2000, 3) %*% chol(0.5^abs(outer(1:3, 1:3, "-")))
+  d <- data.frame(g1 = f[, 1], b1 = (f[, 2] > 0) * 1, b2 = (f[, 3] > 0) * 1)
+  expect_gte(mgm_fit(d, rule = "OR")$n_edges, mgm_fit(d, rule = "AND")$n_edges)
+})
+
+test_that("min_sum drops low sum-score rows for the Ising fits", {
+  set.seed(12)
+  b <- (mk(12, n = 500, p = 5) > 0) * 1L
+  colnames(b) <- paste0("V", 1:5)
+  expect_s3_class(ising_fit(b, min_sum = 2), "psychnet")
+  expect_s3_class(ising_sampler(b, min_sum = 2), "psychnet")
+  expect_error(ising_fit(b, min_sum = 99), "removed every row")
+})
+
+test_that("observation weights are honoured and stay self-certified", {
+  set.seed(13)
+  z <- matrix(stats::rnorm(800 * 2), 800, 2)
+  x <- cbind(z[, 1], z[, 1], z[, 2], z[, 2]) + matrix(stats::rnorm(800 * 4), 800)
+  b <- (x > 0) * 1L; colnames(b) <- paste0("V", 1:4)
+  w <- stats::runif(nrow(b), 0.5, 2)
+  # unit weights reproduce the unweighted fit exactly
+  expect_equal(ising_fit(b)$graph, ising_fit(b, weights = rep(1, nrow(b)))$graph)
+  # non-trivial weights change the fit but the KKT certificate still holds
+  fw <- ising_fit(b, weights = w)
+  expect_lt(fw$kkt, 1e-6)
+  expect_false(isTRUE(all.equal(fw$graph, ising_fit(b)$graph)))
+  # mgm and the unregularized sampler too
+  f <- data.frame(g1 = z[, 1], b1 = b[, 1], b2 = b[, 3])
+  expect_lt(mgm_fit(f, weights = stats::runif(800, 0.5, 2))$kkt, 1e-6)
+  expect_lt(ising_sampler(b, weights = w)$kkt, 1e-6)
+  # bad weights are rejected
+  expect_error(ising_fit(b, weights = rep(1, 3)), "one value per row")
+  expect_error(mgm_fit(f, weights = rep(-1, 800)), "non-negative")
+})

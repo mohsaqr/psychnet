@@ -4,7 +4,16 @@
 \alias{glm_lasso_kkt}
 \title{Stationarity (KKT) residual of an L1-penalized GLM fit}
 \usage{
-glm_lasso_kkt(X, y, b0, beta, lambda, family = "gaussian", active_tol = 1e-08)
+glm_lasso_kkt(
+  X,
+  y,
+  b0,
+  beta,
+  lambda,
+  family = "gaussian",
+  weights = NULL,
+  active_tol = 1e-08
+)
 }
 \arguments{
 \item{X}{Standardized predictor matrix (mean 0, unit variance columns).}
@@ -18,6 +27,8 @@ glm_lasso_kkt(X, y, b0, beta, lambda, family = "gaussian", active_tol = 1e-08)
 \item{lambda}{Penalty.}
 
 \item{family}{\code{"gaussian"} or \code{"binomial"}.}
+
+\item{weights}{Optional observation weights (\code{NULL} = unweighted).}
 
 \item{active_tol}{Magnitude above which a coefficient is "active".}
 }

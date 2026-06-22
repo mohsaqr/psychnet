@@ -39,6 +39,9 @@
 #' @param lambda_min_ratio Smallest penalty as a fraction of the largest.
 #' @param threshold Post-selection coefficient threshold: `"LW"` (default),
 #'   `"HW"`, or `"none"`, matching `mgm::mgm()`.
+#' @param rule Edge-combination rule: `"AND"` (default) or `"OR"`.
+#' @param weights Optional non-negative observation weights, one per row of the
+#'   (NA-prepared) data. `NULL` (default) is unweighted.
 #' @param na_method Missing-data handling: `"pairwise"` (default) single-imputes
 #'   each column over its observed values (mean for continuous, mode for binary),
 #'   keeping the full sample; `"listwise"` drops incomplete rows.
@@ -59,20 +62,23 @@
 #' @export
 mgm_fit <- function(data, gamma = 0.25, types = NULL,
                     nlambda = 100L, lambda_min_ratio = 0.01,
-                    threshold = c("LW", "HW", "none"),
+                    threshold = c("LW", "HW", "none"), rule = c("AND", "OR"),
+                    weights = NULL,
                     na_method = c("pairwise", "listwise"), labels = NULL) {
   threshold <- match.arg(threshold)
+  rule <- match.arg(rule)
   na_method <- match.arg(na_method)
   mat <- .na_prep_nodewise(.as_numeric_matrix(data, drop_na = FALSE), na_method)
   p <- ncol(mat)
   if (is.null(labels)) labels <- colnames(mat)
   if (is.null(types))  types  <- .detect_types(mat)
   stopifnot(length(types) == p, all(types %in% c("g", "c")))
+  weights <- .check_weights(weights, nrow(mat))
 
   fits <- lapply(seq_len(p), function(i) {
     fam <- if (types[i] == "c") "binomial" else "gaussian"
     .nodewise_ebic(mat[, -i, drop = FALSE], mat[, i], fam,
-                   gamma, nlambda, lambda_min_ratio)
+                   gamma, nlambda, lambda_min_ratio, weights = weights)
   })
 
   # Standardized asymmetric weights make cross-family edges comparable.
@@ -97,7 +103,8 @@ mgm_fit <- function(data, gamma = 0.25, types = NULL,
   std <- .standardize(mat)
   families <- ifelse(types == "c", "binomial", "gaussian")
 
-  present <- (Bt != 0) & (t(Bt) != 0)          # AND rule
+  present <- if (rule == "AND") (Bt != 0) & (t(Bt) != 0)
+             else (Bt != 0) | (t(Bt) != 0)
   W <- (Bt + t(Bt)) / 2
   W[!present] <- 0
   diag(W) <- 0

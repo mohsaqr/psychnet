@@ -15,6 +15,16 @@
   .na_prep_nodewise(mat, na_method)
 }
 
+# Drop rows whose total sum-score is below min_sum, keeping weights aligned.
+#' @noRd
+.apply_min_sum <- function(mat, weights, min_sum) {
+  if (is.null(min_sum)) return(list(mat = mat, weights = weights))
+  keep <- rowSums(mat) >= min_sum
+  if (!any(keep)) stop("`min_sum` removed every row.", call. = FALSE)
+  list(mat = mat[keep, , drop = FALSE],
+       weights = if (is.null(weights)) NULL else weights[keep])
+}
+
 #' Ising network for binary data
 #'
 #' Estimates an Ising model by nodewise L1-penalized logistic regression with
@@ -28,6 +38,10 @@
 #' @param rule Edge-combination rule: `"AND"` (default) or `"OR"`.
 #' @param nlambda Number of penalties per nodewise path. Default 100.
 #' @param lambda_min_ratio Smallest penalty as a fraction of the largest.
+#' @param min_sum Minimum row sum-score (number of endorsed items); rows below
+#'   it are dropped before fitting. `NULL` (default) keeps every row.
+#' @param weights Optional non-negative observation weights, one per retained
+#'   row. `NULL` (default) is unweighted.
 #' @param na_method Missing-data handling: `"pairwise"` (default) single-imputes
 #'   each column over its observed values (mode for binary), keeping the full
 #'   sample; `"listwise"` drops incomplete rows. Identical for complete data.
@@ -44,17 +58,21 @@
 #' ising_fit(b)
 #' @export
 ising_fit <- function(data, gamma = 0.25, rule = c("AND", "OR"),
-                      nlambda = 100L, lambda_min_ratio = 0.01,
+                      nlambda = 100L, lambda_min_ratio = 0.01, min_sum = NULL,
+                      weights = NULL,
                       na_method = c("pairwise", "listwise"), labels = NULL) {
   rule <- match.arg(rule)
   na_method <- match.arg(na_method)
   mat <- .as_binary_matrix(data, na_method)
+  weights <- .check_weights(weights, nrow(mat))
+  ms <- .apply_min_sum(mat, weights, min_sum)
+  mat <- ms$mat; weights <- ms$weights
   p <- ncol(mat)
   if (is.null(labels)) labels <- colnames(mat)
 
   fits <- lapply(seq_len(p), function(i) {
     .nodewise_ebic(mat[, -i, drop = FALSE], mat[, i], "binomial",
-                   gamma, nlambda, lambda_min_ratio)
+                   gamma, nlambda, lambda_min_ratio, weights = weights)
   })
 
   # Asymmetric matrix B: B[i, j] = effect of node j on node i on the raw 0/1
