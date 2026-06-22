@@ -90,8 +90,6 @@ ising_sampler <- function(data, rule = c("AND", "OR"), alpha = NULL,
     P[i, -i] <- fits[[i]]$p
   }
   b0_std <- vapply(fits, function(f) f$b0, numeric(1))
-  thresholds <- vapply(seq_len(p), function(i)
-    b0_std[i] - sum(fits[[i]]$beta * std$center[-i]), numeric(1))
   worst_kkt  <- max(vapply(fits, function(f) f$kkt, numeric(1)))
 
   if (!is.null(alpha)) {
@@ -100,6 +98,11 @@ ising_sampler <- function(data, rule = c("AND", "OR"), alpha = NULL,
     drop <- Padj > alpha
     B[drop] <- 0; B_std[drop] <- 0
   }
+
+  # Raw-scale node thresholds from the (post-pruning) nodewise coefficients, so
+  # they stay consistent with the retained edges and with predictability(): for
+  # B[i, i] = 0, (B %*% center)[i] = sum_{j != i} beta_raw_ij * center_j.
+  thresholds <- b0_std - as.numeric(B %*% std$center)
 
   present <- if (rule == "AND") (B != 0) & (t(B) != 0) else (B != 0) | (t(B) != 0)
   W <- (B + t(B)) / 2

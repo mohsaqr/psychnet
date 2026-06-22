@@ -89,3 +89,86 @@ test_that("relimp rejects an indefinite cor_matrix", {
   S <- matrix(c(1, .9, .9, .9, 1, -.9, .9, -.9, 1), 3, 3)
   expect_error(relimp_network(cor_matrix = S), "positive-semidefinite")
 })
+
+# ---- round 2 ---------------------------------------------------------------
+
+test_that("the empty graph is returned for zero-association input, not an error", {
+  for (fn in list(ebic_glasso, huge_network)) {
+    fit <- fn(cor_matrix = diag(5), n = 200)
+    expect_equal(fit$n_edges, 0L)
+    expect_lt(fit$kkt, 1e-8)
+  }
+  expect_equal(ggm_modselect(cor_matrix = diag(5), n = 200)$n_edges, 0L)
+  # the empty-graph EBIC equals the textbook n*p on a correlation matrix
+  expect_equal(ebic_glasso(cor_matrix = diag(4), n = 100)$ebic, 400)
+})
+
+test_that("glasso_kkt rejects asymmetric and singular precision matrices", {
+  expect_true(is.infinite(glasso_kkt(matrix(c(1, .5, 0, 1), 2, 2), diag(2), .1)))
+  expect_true(is.infinite(ggm_support_kkt(matrix(c(1, .5, 0, 1), 2, 2), diag(2),
+                                          matrix(TRUE, 2, 2))))
+})
+
+test_that("relimp accepts a covariance-scale matrix via cov2cor", {
+  S <- matrix(c(4, 1, 1, 1), 2, 2)               # var 4 and 1, cov 1
+  fit <- relimp_network(cor_matrix = S)
+  expect_true(all(fit$r2 >= 0 & fit$r2 <= 1))    # standardized R^2, not 1.0+
+  expect_lt(lmg_certificate(fit), 1e-8)
+})
+
+test_that("nct tolerates a constant column and rejects mismatched columns", {
+  set.seed(5)
+  a <- cbind(x = stats::rnorm(60), y = stats::rnorm(60), z = 1)  # z constant
+  b <- cbind(x = stats::rnorm(60), y = stats::rnorm(60), z = 1)
+  expect_s3_class(nct(a, b, iter = 5), "psychnet_nct")           # no crash
+  d <- cbind(y = stats::rnorm(60), x = stats::rnorm(60), z = 1)  # reordered
+  expect_error(nct(a, d, iter = 5), "same columns")
+})
+
+test_that("predictability rejects data missing network-node columns", {
+  set.seed(6)
+  b <- (matrix(stats::rnorm(400 * 3), 400, 3) > 0) * 1L
+  colnames(b) <- c("A", "B", "C")
+  fit <- ising_fit(b)
+  wrong <- b; colnames(wrong) <- c("A", "B", "Z")
+  expect_error(predictability(fit, data = wrong), "missing columns")
+})
+
+test_that("logo errors on a singular clique block instead of returning garbage", {
+  expect_error(logo_network(cor_matrix = matrix(1, 5, 5), n = 100), "singular")
+})
+
+# ---- argument tidy pass ----------------------------------------------------
+
+test_that("cor / pcor accept a precomputed cor_matrix like the other GGMs", {
+  set.seed(8)
+  x <- mk(8, n = 300, p = 5)
+  S <- stats::cor(x)
+  expect_equal(cor_network(cor_matrix = S)$graph, cor_network(x)$graph)
+  expect_equal(pcor_network(cor_matrix = S)$graph, pcor_network(x)$graph)
+  # n is only required for significance testing
+  expect_error(cor_network(cor_matrix = S, alpha = 0.05), "`n` is required")
+})
+
+test_that("cor_method is the correlation-type argument and reaches the front door", {
+  set.seed(9)
+  x <- mk(9, n = 300, p = 5)
+  # spearman selected through estimate_network() forwards to the verb
+  viafd  <- estimate_network(x, "pcor", cor_method = "spearman")$graph
+  direct <- pcor_network(x, cor_method = "spearman")$graph
+  expect_equal(viafd, direct)
+  # and it actually changes the result vs pearson
+  expect_false(isTRUE(all.equal(direct, pcor_network(x, cor_method = "pearson")$graph)))
+  # the old overloaded `method=` name is gone from the verb
+  expect_false("method" %in% names(formals(cor_network)))
+  expect_true("cor_method" %in% names(formals(tmfg_network)))
+})
+
+test_that("estimate_network does not override ising/mgm native gamma (0.25)", {
+  set.seed(10)
+  b <- (mk(10, n = 600, p = 5) > 0) * 1L
+  colnames(b) <- paste0("V", 1:5)
+  expect_equal(estimate_network(b, "ising")$graph, ising_fit(b)$graph)        # 0.25
+  expect_equal(estimate_network(b, "ising", gamma = 0.5)$graph,
+               ising_fit(b, gamma = 0.5)$graph)                               # override
+})

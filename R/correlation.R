@@ -44,6 +44,10 @@
   if (!anyNA(mat) || na_method == "listwise") {
     mat <- mat[stats::complete.cases(mat), , drop = FALSE]
     if (nrow(mat) < 2L) stop("Need at least 2 complete observations.", call. = FALSE)
+    # Row deletion can turn a variable constant; that would give NA correlations.
+    if (any(apply(mat, 2L, stats::sd) == 0)) {
+      stop("After listwise deletion a variable has zero variance.", call. = FALSE)
+    }
     return(list(S = stats::cor(mat, method = method), n = nrow(mat),
                 labels = colnames(mat), na_method = "listwise"))
   }
@@ -120,8 +124,13 @@
 #' Marginal (zero-order) association network: the Pearson correlation matrix
 #' with the diagonal removed. Equivalent to `bootnet`'s `"cor"` default.
 #'
-#' @param data Numeric data frame or matrix (rows = observations).
-#' @param method Correlation method: `"pearson"` (default), `"spearman"`, or
+#' @param data Numeric data frame or matrix (rows = observations). Optional if
+#'   `cor_matrix` is supplied.
+#' @param cor_matrix Optional precomputed correlation matrix; if given, `data`
+#'   is ignored and `n` is required when `alpha` is used.
+#' @param n Sample size (needed for significance testing when `cor_matrix` is
+#'   supplied).
+#' @param cor_method Correlation method: `"pearson"` (default), `"spearman"`, or
 #'   `"kendall"`.
 #' @param threshold Correlations with absolute value below this are set to zero.
 #'   Default 0.
@@ -142,20 +151,34 @@
 #' cor_network(x)
 #' cor_network(x, alpha = 0.05, adjust = "BH")
 #' @export
-cor_network <- function(data, method = c("pearson", "spearman", "kendall"),
+cor_network <- function(data = NULL, cor_matrix = NULL, n = NULL,
+                        cor_method = c("pearson", "spearman", "kendall"),
                         threshold = 0, alpha = NULL, adjust = "none",
                         na_method = c("pairwise", "listwise"), labels = NULL) {
-  method <- match.arg(method)
+  cor_method <- match.arg(cor_method)
   adjust <- match.arg(adjust, stats::p.adjust.methods)
   na_method <- match.arg(na_method)
-  ci <- .cor_input(data, method = method, na_method = na_method)
-  S <- ci$S; n <- ci$n
-  if (is.null(labels)) labels <- ci$labels
+  if (is.null(cor_matrix)) {
+    ci <- .cor_input(data, method = cor_method, na_method = na_method)
+    S <- ci$S; n <- ci$n; na_used <- ci$na_method
+    if (is.null(labels)) labels <- ci$labels
+  } else {
+    S <- as.matrix(cor_matrix)
+    if (!is.null(alpha) && is.null(n)) {
+      stop("`n` is required when `cor_matrix` is supplied and `alpha` is set.",
+           call. = FALSE)
+    }
+    na_used <- "none"
+    if (is.null(labels)) {
+      labels <- colnames(S)
+      if (is.null(labels)) labels <- paste0("V", seq_len(ncol(S)))
+    }
+  }
   g <- S
   diag(g) <- 0
   r_full <- g                                  # p-values use the true correlations
   g[abs(g) < threshold] <- 0
-  extra <- list(cor_matrix = S, n_eff = n, na_method = ci$na_method)
+  extra <- list(cor_matrix = S, n_eff = n, na_method = na_used)
   if (!is.null(alpha)) {
     P <- .cor_pvalues(r_full, n, k = 0L)
     g <- .apply_sig(g, P, alpha, adjust)
@@ -180,20 +203,34 @@ cor_network <- function(data, method = c("pearson", "spearman", "kendall"),
 #' pcor_network(x)
 #' pcor_network(x, alpha = 0.05, adjust = "holm")
 #' @export
-pcor_network <- function(data, method = c("pearson", "spearman", "kendall"),
+pcor_network <- function(data = NULL, cor_matrix = NULL, n = NULL,
+                         cor_method = c("pearson", "spearman", "kendall"),
                          threshold = 0, alpha = NULL, adjust = "none",
                          na_method = c("pairwise", "listwise"), labels = NULL) {
-  method <- match.arg(method)
+  cor_method <- match.arg(cor_method)
   adjust <- match.arg(adjust, stats::p.adjust.methods)
   na_method <- match.arg(na_method)
-  ci <- .cor_input(data, method = method, na_method = na_method)
-  S <- ci$S; n <- ci$n
-  if (is.null(labels)) labels <- ci$labels
+  if (is.null(cor_matrix)) {
+    ci <- .cor_input(data, method = cor_method, na_method = na_method)
+    S <- ci$S; n <- ci$n; na_used <- ci$na_method
+    if (is.null(labels)) labels <- ci$labels
+  } else {
+    S <- as.matrix(cor_matrix)
+    if (!is.null(alpha) && is.null(n)) {
+      stop("`n` is required when `cor_matrix` is supplied and `alpha` is set.",
+           call. = FALSE)
+    }
+    na_used <- "none"
+    if (is.null(labels)) {
+      labels <- colnames(S)
+      if (is.null(labels)) labels <- paste0("V", seq_len(ncol(S)))
+    }
+  }
   wi <- .pd_solve(S)
   g  <- .precision_to_pcor(wi)
   r_full <- g                                   # p-values use the true partials
   g[abs(g) < threshold] <- 0
-  extra <- list(precision = wi, cor_matrix = S, n_eff = n, na_method = ci$na_method)
+  extra <- list(precision = wi, cor_matrix = S, n_eff = n, na_method = na_used)
   if (!is.null(alpha)) {
     P <- .cor_pvalues(r_full, n, k = ncol(S) - 2L)   # full-order partials
     g <- .apply_sig(g, P, alpha, adjust)

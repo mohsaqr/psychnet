@@ -9,7 +9,7 @@ estimate_network(
   method = c("EBICglasso", "cor", "pcor", "ising", "mgm", "huge", "ggmModSelect", "TMFG",
     "LoGo", "relimp", "IsingSampler"),
   threshold = 0,
-  gamma = 0.5,
+  gamma = NULL,
   labels = NULL,
   ...
 )
@@ -22,14 +22,19 @@ estimate_network(
 \code{"IsingSampler"}. Common aliases are accepted (e.g. \code{"glasso"} ->
 \code{"EBICglasso"}, \code{"IsingFit"} -> \code{"ising"}).}
 
-\item{threshold}{Absolute-weight threshold below which edges are zeroed.}
+\item{threshold}{Absolute-weight threshold below which edges are zeroed
+(forwarded only to the methods that take it: \code{cor}, \code{pcor}, \code{EBICglasso},
+\code{huge}, \code{ggmModSelect}, \code{LoGo}).}
 
-\item{gamma}{EBIC hyperparameter for the regularized methods.}
+\item{gamma}{EBIC hyperparameter. \code{NULL} (default) keeps each method's own
+default (0.5 for the Gaussian graphical models, 0.25 for \code{ising}/\code{mgm});
+set it to override. Forwarded only to the regularized methods.}
 
 \item{labels}{Optional node labels.}
 
-\item{...}{Passed to the underlying estimator (e.g. \verb{npn=} for \code{"huge"},
-\verb{alpha=} for the correlation / \code{"IsingSampler"} methods).}
+\item{...}{Passed to the underlying estimator (e.g. \verb{cor_method=} for the
+correlation-based methods, \verb{npn=} for \code{"huge"}, \verb{rule=} for the Ising
+methods, \verb{alpha=} for the correlation / \code{"IsingSampler"} methods).}
 }
 \value{
 A \code{psychnet} object.
@@ -42,5 +47,5 @@ downstream code. Mirrors \code{bootnet::estimateNetwork(data, default = ...)}.
 \examples{
 x <- matrix(stats::rnorm(200 * 5), 200, 5)
 estimate_network(x, method = "EBICglasso")
-estimate_network(x, method = "pcor")
+estimate_network(x, method = "pcor", cor_method = "spearman")
 }

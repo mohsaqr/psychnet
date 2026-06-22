@@ -113,7 +113,7 @@ tmfg_certificate <- function(x) {
 #' @param data Numeric data frame or matrix (rows = observations). Optional if
 #'   `cor_matrix` is supplied.
 #' @param cor_matrix Optional correlation matrix.
-#' @param method Correlation method when `data` is supplied: `"pearson"`
+#' @param cor_method Correlation method when `data` is supplied: `"pearson"`
 #'   (default), `"spearman"`, or `"kendall"`.
 #' @param na_method Missing-data handling when `data` is supplied: `"pairwise"`
 #'   (default) or `"listwise"`. See [ebic_glasso()].
@@ -128,12 +128,12 @@ tmfg_certificate <- function(x) {
 #' tmfg_network(x)
 #' @export
 tmfg_network <- function(data = NULL, cor_matrix = NULL,
-                         method = c("pearson", "spearman", "kendall"),
+                         cor_method = c("pearson", "spearman", "kendall"),
                          na_method = c("pairwise", "listwise"), labels = NULL) {
-  method <- match.arg(method)
+  cor_method <- match.arg(cor_method)
   na_method <- match.arg(na_method)
   if (is.null(cor_matrix)) {
-    ci <- .cor_input(data, method = method, na_method = na_method)
+    ci <- .cor_input(data, method = cor_method, na_method = na_method)
     S <- ci$S; n_obs <- ci$n
     if (is.null(labels)) labels <- ci$labels
   } else {

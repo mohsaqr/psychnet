@@ -48,6 +48,11 @@ nct <- function(data1, data2, iter = 1000L, gamma = 0.5,
   data2 <- as.matrix(data2)
   stopifnot(ncol(data1) == ncol(data2), iter >= 1L,
             is.logical(paired), is.logical(abs), is.logical(weighted))
+  if (!is.null(colnames(data1)) && !is.null(colnames(data2)) &&
+      !identical(colnames(data1), colnames(data2))) {
+    stop("`data1` and `data2` must have the same columns in the same order.",
+         call. = FALSE)
+  }
   p_adjust <- match.arg(p_adjust, stats::p.adjust.methods)
 
   iter <- as.integer(iter)
@@ -59,7 +64,12 @@ nct <- function(data1, data2, iter = 1000L, gamma = 0.5,
   dataall <- rbind(data1, data2)
 
   est <- function(x) {
-    cor_x <- .nearest_pd_cor(stats::cor(x))
+    cx <- stats::cor(x)
+    # a column that is constant in this (sub)sample has undefined correlations;
+    # treat it as unassociated rather than letting NA reach the eigen solver
+    cx[is.na(cx)] <- 0
+    diag(cx) <- 1
+    cor_x <- .nearest_pd_cor(cx)
     ebic_glasso(cor_matrix = cor_x, n = nrow(x), gamma = gamma)$graph
   }
   binarize <- function(m) (m != 0) * 1

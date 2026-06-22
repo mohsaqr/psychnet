@@ -108,6 +108,14 @@ ggm_modselect <- function(data = NULL, cor_matrix = NULL, n = NULL,
   }
   p <- ncol(S)
 
+  # No off-diagonal association: the empty graph is the optimum, skip the search.
+  if (max(abs(S[upper.tri(S)])) <= 1e-12) {
+    best_support <- matrix(FALSE, p, p)
+    best_theta <- .ggm_fit_support(S, best_support)
+    best_ebic <- .support_ebic(best_theta, S, n, gamma, p, best_support)
+    stepwise <- FALSE
+  } else {
+
   # Candidate supports from the glasso path (deduplicated by edge pattern).
   lambda_path <- .compute_lambda_path(S, nlambda, lambda_min_ratio)
   seen <- character(0)
@@ -127,6 +135,7 @@ ggm_modselect <- function(data = NULL, cor_matrix = NULL, n = NULL,
     if (eb < best_ebic) { best_ebic <- eb; best_support <- sup; best_theta <- theta }
   }
   if (is.null(best_support)) stop("Model selection failed.", call. = FALSE)
+  }
 
   # Greedy stepwise single-edge add/drop refinement.
   if (stepwise) {

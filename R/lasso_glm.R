@@ -46,7 +46,8 @@
                            b0 = NULL, beta = NULL) {
   n <- nrow(X); p <- ncol(X)
   if (is.null(beta)) beta <- numeric(p)
-  if (is.null(b0))   b0 <- if (family == "binomial") log(mean(y) / (1 - mean(y))) else mean(y)
+  if (is.null(b0))   b0 <- if (family == "binomial")
+    stats::qlogis(min(max(mean(y), 1e-10), 1 - 1e-10)) else mean(y)
 
   if (family == "gaussian") {
     w <- rep(1, n)

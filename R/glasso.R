@@ -86,6 +86,17 @@
           length.out = nlambda))
 }
 
+# Empty-graph fit. When no off-diagonal association exists the optimum is the
+# diagonal precision diag(1/S_ii) at lambda 0 (FHT 2008 KKT: W = S, every
+# inactive residual 0 <= rho). Returns the same shape as .select_ebic().
+.empty_glasso <- function(S, n) {
+  wi <- diag(1 / diag(S), nrow = ncol(S))
+  dimnames(wi) <- dimnames(S)
+  loglik <- (n / 2) * (sum(log(1 / diag(S))) - ncol(S))   # tr(S wi) = p
+  ebic <- -2 * loglik                                      # npar = 0
+  list(wi = wi, lambda = 0, ebic = ebic, ebic_path = ebic)
+}
+
 # --- two-tier EBIC selection: fast scan, then tight refit at the winner ------
 .select_ebic <- function(S, lambda_path, n, gamma,
                          scan_tol = 1e-4, refit_tol = 1e-8) {
@@ -155,11 +166,14 @@
 #' glasso_kkt(fit$precision, S, fit$lambda)
 #' @export
 glasso_kkt <- function(theta, cor_matrix, rho, active_tol = 1e-8) {
-  # Positive-definiteness is part of the optimality conditions: the objective is
-  # defined only on Theta > 0, so an indefinite matrix is infeasible, not optimal.
-  if (min(eigen((theta + t(theta)) / 2, symmetric = TRUE,
-                only.values = TRUE)$values) <= 0) return(Inf)
-  W <- solve(theta)
+  # Feasibility is part of the optimality conditions: the objective is defined
+  # only on symmetric Theta > 0, so an asymmetric, indefinite, or numerically
+  # non-invertible matrix is infeasible, not optimal.
+  if (max(abs(theta - t(theta))) > 1e-8) return(Inf)
+  if (min(eigen(theta, symmetric = TRUE, only.values = TRUE)$values) <= 0)
+    return(Inf)
+  W <- tryCatch(solve(theta), error = function(e) NULL)
+  if (is.null(W)) return(Inf)
   diag_v <- max(abs(diag(W) - diag(cor_matrix)))
   off <- upper.tri(theta)
   r  <- (W - cor_matrix)[off]
@@ -193,9 +207,11 @@ glasso_kkt <- function(theta, cor_matrix, rho, active_tol = 1e-8) {
 #' ggm_support_kkt(fit$precision, S, fit$support)
 #' @export
 ggm_support_kkt <- function(theta, cor_matrix, support, active_tol = 1e-8) {
-  if (min(eigen((theta + t(theta)) / 2, symmetric = TRUE,
-                only.values = TRUE)$values) <= 0) return(Inf)
-  W <- solve(theta)
+  if (max(abs(theta - t(theta))) > 1e-8) return(Inf)
+  if (min(eigen(theta, symmetric = TRUE, only.values = TRUE)$values) <= 0)
+    return(Inf)
+  W <- tryCatch(solve(theta), error = function(e) NULL)
+  if (is.null(W)) return(Inf)
   diag_v <- max(abs(diag(W) - diag(cor_matrix)))
   off <- upper.tri(theta)
   sup <- support[off]
@@ -259,13 +275,17 @@ ebic_glasso <- function(data = NULL, cor_matrix = NULL, n = NULL,
   stopifnot(is.numeric(gamma), length(gamma) == 1L, gamma >= 0,
             nlambda >= 2L, lambda_min_ratio > 0, lambda_min_ratio < 1)
 
-  lambda_path <- .compute_lambda_path(S, nlambda, lambda_min_ratio)
-  sel <- .select_ebic(S, lambda_path, n, gamma)
+  dimnames(S) <- list(labels, labels)
+  if (max(abs(S[upper.tri(S)])) <= 1e-12) {     # no association: empty optimum
+    sel <- .empty_glasso(S, n); lambda_path <- 0
+  } else {
+    lambda_path <- .compute_lambda_path(S, nlambda, lambda_min_ratio)
+    sel <- .select_ebic(S, lambda_path, n, gamma)
+  }
 
   pcor <- .precision_to_pcor(sel$wi)
   pcor[abs(pcor) < threshold] <- 0
   dimnames(pcor) <- list(labels, labels)
-  dimnames(S) <- list(labels, labels)
 
   .new_psychnet(
     graph = pcor, labels = labels, method = "EBICglasso",

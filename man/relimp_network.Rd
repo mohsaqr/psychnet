@@ -7,7 +7,7 @@
 relimp_network(
   data = NULL,
   cor_matrix = NULL,
-  method = c("pearson", "spearman", "kendall"),
+  cor_method = c("pearson", "spearman", "kendall"),
   max_nodes = 21L,
   na_method = c("pairwise", "listwise"),
   labels = NULL
@@ -19,7 +19,8 @@ relimp_network(
 
 \item{cor_matrix}{Optional correlation matrix.}
 
-\item{method}{Correlation method when \code{data} is supplied.}
+\item{cor_method}{Correlation method when \code{data} is supplied: \code{"pearson"}
+(default), \code{"spearman"}, or \code{"kendall"}.}
 
 \item{max_nodes}{Refuse to run above this many nodes (the cost grows as
 \code{2^(p-1)} per node). Default 21.}

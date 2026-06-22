@@ -5,8 +5,10 @@
 \title{Correlation network}
 \usage{
 cor_network(
-  data,
-  method = c("pearson", "spearman", "kendall"),
+  data = NULL,
+  cor_matrix = NULL,
+  n = NULL,
+  cor_method = c("pearson", "spearman", "kendall"),
   threshold = 0,
   alpha = NULL,
   adjust = "none",
@@ -15,9 +17,16 @@ cor_network(
 )
 }
 \arguments{
-\item{data}{Numeric data frame or matrix (rows = observations).}
+\item{data}{Numeric data frame or matrix (rows = observations). Optional if
+\code{cor_matrix} is supplied.}
 
-\item{method}{Correlation method: \code{"pearson"} (default), \code{"spearman"}, or
+\item{cor_matrix}{Optional precomputed correlation matrix; if given, \code{data}
+is ignored and \code{n} is required when \code{alpha} is used.}
+
+\item{n}{Sample size (needed for significance testing when \code{cor_matrix} is
+supplied).}
+
+\item{cor_method}{Correlation method: \code{"pearson"} (default), \code{"spearman"}, or
 \code{"kendall"}.}
 
 \item{threshold}{Correlations with absolute value below this are set to zero.

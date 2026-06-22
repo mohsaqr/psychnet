@@ -10,10 +10,14 @@
 #' @noRd
 .logo_precision <- function(S, cliques, separators) {
   p <- ncol(S)
-  # A clique / separator block can be singular on degenerate input (duplicate or
-  # constant columns); fall back to the pseudo-inverse rather than erroring. The
-  # ggm_support_kkt() certificate then flags any block where this was not exact.
-  inv <- function(B) tryCatch(solve(B), error = function(e) MASS_ginv(B))
+  # The LoGo decomposition K = sum inv(S_clique) - sum inv(S_separator) is only
+  # defined when every clique and separator covariance block is invertible. A
+  # pseudo-inverse does NOT give the Gaussian decomposable MLE, so a singular
+  # block (duplicate or collinear columns) is a hard error rather than a guess.
+  inv <- function(B) tryCatch(solve(B), error = function(e)
+    stop("LoGo: a clique or separator covariance block is singular (collinear ",
+         "or duplicate variables); cannot form the chordal precision.",
+         call. = FALSE))
   Theta <- matrix(0, p, p)
   for (cl in cliques) {
     Theta[cl, cl] <- Theta[cl, cl] + inv(S[cl, cl, drop = FALSE])
@@ -37,7 +41,8 @@
 #'   `cor_matrix` is supplied.
 #' @param cor_matrix Optional correlation matrix; if given, `n` is required.
 #' @param n Sample size (recorded on the result; required with `cor_matrix`).
-#' @param method Correlation method when `data` is supplied.
+#' @param cor_method Correlation method when `data` is supplied: `"pearson"`
+#'   (default), `"spearman"`, or `"kendall"`.
 #' @param threshold Partial correlations with absolute value below this are
 #'   zeroed. Default 0.
 #' @param na_method Missing-data handling when `data` is supplied: `"pairwise"`
@@ -51,13 +56,13 @@
 #' logo_network(x)
 #' @export
 logo_network <- function(data = NULL, cor_matrix = NULL, n = NULL,
-                         method = c("pearson", "spearman", "kendall"),
+                         cor_method = c("pearson", "spearman", "kendall"),
                          threshold = 0, na_method = c("pairwise", "listwise"),
                          labels = NULL) {
-  method <- match.arg(method)
+  cor_method <- match.arg(cor_method)
   na_method <- match.arg(na_method)
   if (is.null(cor_matrix)) {
-    ci <- .cor_input(data, method = method, na_method = na_method)
+    ci <- .cor_input(data, method = cor_method, na_method = na_method)
     S <- ci$S; n <- ci$n
     if (is.null(labels)) labels <- ci$labels
   } else {

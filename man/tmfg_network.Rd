@@ -7,7 +7,7 @@
 tmfg_network(
   data = NULL,
   cor_matrix = NULL,
-  method = c("pearson", "spearman", "kendall"),
+  cor_method = c("pearson", "spearman", "kendall"),
   na_method = c("pairwise", "listwise"),
   labels = NULL
 )
@@ -18,7 +18,7 @@ tmfg_network(
 
 \item{cor_matrix}{Optional correlation matrix.}
 
-\item{method}{Correlation method when \code{data} is supplied: \code{"pearson"}
+\item{cor_method}{Correlation method when \code{data} is supplied: \code{"pearson"}
 (default), \code{"spearman"}, or \code{"kendall"}.}
 
 \item{na_method}{Missing-data handling when \code{data} is supplied: \code{"pairwise"}

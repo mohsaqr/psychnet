@@ -8,7 +8,7 @@ logo_network(
   data = NULL,
   cor_matrix = NULL,
   n = NULL,
-  method = c("pearson", "spearman", "kendall"),
+  cor_method = c("pearson", "spearman", "kendall"),
   threshold = 0,
   na_method = c("pairwise", "listwise"),
   labels = NULL
@@ -22,7 +22,8 @@ logo_network(
 
 \item{n}{Sample size (recorded on the result; required with \code{cor_matrix}).}
 
-\item{method}{Correlation method when \code{data} is supplied.}
+\item{cor_method}{Correlation method when \code{data} is supplied: \code{"pearson"}
+(default), \code{"spearman"}, or \code{"kendall"}.}
 
 \item{threshold}{Partial correlations with absolute value below this are
 zeroed. Default 0.}

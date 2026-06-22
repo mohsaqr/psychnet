@@ -72,7 +72,8 @@ lmg_certificate <- function(x) {
 #' @param data Numeric data frame or matrix (rows = observations). Optional if
 #'   `cor_matrix` is supplied.
 #' @param cor_matrix Optional correlation matrix.
-#' @param method Correlation method when `data` is supplied.
+#' @param cor_method Correlation method when `data` is supplied: `"pearson"`
+#'   (default), `"spearman"`, or `"kendall"`.
 #' @param max_nodes Refuse to run above this many nodes (the cost grows as
 #'   `2^(p-1)` per node). Default 21.
 #' @param na_method Missing-data handling when `data` is supplied: `"pairwise"`
@@ -87,23 +88,25 @@ lmg_certificate <- function(x) {
 #' relimp_network(cor_matrix = S)
 #' @export
 relimp_network <- function(data = NULL, cor_matrix = NULL,
-                           method = c("pearson", "spearman", "kendall"),
+                           cor_method = c("pearson", "spearman", "kendall"),
                            max_nodes = 21L,
                            na_method = c("pairwise", "listwise"), labels = NULL) {
-  method <- match.arg(method)
+  cor_method <- match.arg(cor_method)
   na_method <- match.arg(na_method)
   if (is.null(cor_matrix)) {
-    ci <- .cor_input(data, method = method, na_method = na_method)
+    ci <- .cor_input(data, method = cor_method, na_method = na_method)
     S <- ci$S; n_obs <- ci$n
     if (is.null(labels)) labels <- ci$labels
   } else {
     S <- as.matrix(cor_matrix)
     if (nrow(S) != ncol(S) || any(abs(S - t(S)) > 1e-8) ||
+        any(diag(S) <= 0) ||
         min(eigen(S, symmetric = TRUE, only.values = TRUE)$values) < -1e-8) {
-      stop("`cor_matrix` must be a symmetric positive-semidefinite matrix; ",
-           "an indefinite matrix yields R-squared shares outside [0, 1].",
-           call. = FALSE)
+      stop("`cor_matrix` must be a symmetric positive-semidefinite matrix with ",
+           "positive diagonal; an indefinite matrix yields R-squared shares ",
+           "outside [0, 1].", call. = FALSE)
     }
+    S <- stats::cov2cor(S)        # the LMG R-squared formula needs unit diagonal
     if (is.null(labels)) {
       labels <- colnames(S)
       if (is.null(labels)) labels <- paste0("V", seq_len(ncol(S)))

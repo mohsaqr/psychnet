@@ -43,7 +43,11 @@ predictability <- function(x, data = NULL, ...) {
                    x$method), call. = FALSE)
     }
     mat <- .as_numeric_matrix(data)
-    if (!is.null(colnames(mat)) && all(labs %in% colnames(mat))) {
+    if (!is.null(colnames(mat))) {
+      # named data must contain every node, selected by name (not by position)
+      if (!all(labs %in% colnames(mat))) {
+        stop("`data` is missing columns for some network nodes.", call. = FALSE)
+      }
       mat <- mat[, labs, drop = FALSE]
     }
     if (ncol(mat) != p) {

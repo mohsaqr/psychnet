@@ -116,8 +116,12 @@ huge_network <- function(data = NULL, cor_matrix = NULL, n = NULL,
     S <- .nearest_pd_cor(S)
   }
 
-  lambda_path <- .compute_lambda_path(S, nlambda, lambda_min_ratio)
-  sel <- .select_ebic(S, lambda_path, n, gamma)
+  if (max(abs(S[upper.tri(S)])) <= 1e-12) {     # no association: empty optimum
+    sel <- .empty_glasso(S, n)
+  } else {
+    lambda_path <- .compute_lambda_path(S, nlambda, lambda_min_ratio)
+    sel <- .select_ebic(S, lambda_path, n, gamma)
+  }
 
   pcor <- .precision_to_pcor(sel$wi)
   pcor[abs(pcor) < threshold] <- 0
