@@ -38,7 +38,7 @@ row. \code{NULL} (default) is unweighted.}
 \item{labels}{Optional node labels.}
 }
 \value{
-A \code{psychnet} object whose \verb{$graph} is the symmetric weight matrix,
+A \code{psychnet} object whose \verb{$weights} is the symmetric weight matrix,
 with \verb{$thresholds} (node intercepts), \verb{$rule}, \verb{$p_values}, \verb{$nodewise}
 (for \code{\link[=predictability]{predictability()}}), and \verb{$kkt} (worst nodewise score residual).
 }

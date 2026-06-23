@@ -33,8 +33,8 @@
 #' @export
 predictability <- function(x, data = NULL, ...) {
   stopifnot(inherits(x, "psychnet"))
-  labs <- x$labels
-  p <- x$n_nodes
+  labs <- x$nodes$label
+  p <- nrow(x$nodes)
 
   # --- nodewise models: compute from data ------------------------------------
   if (!is.null(x$nodewise)) {

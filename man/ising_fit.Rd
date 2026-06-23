@@ -40,7 +40,7 @@ sample; \code{"listwise"} drops incomplete rows. Identical for complete data.}
 \item{labels}{Optional node labels.}
 }
 \value{
-A \code{psychnet} object whose \verb{$graph} is the symmetric weight matrix,
+A \code{psychnet} object whose \verb{$weights} is the symmetric weight matrix,
 with \verb{$thresholds} (node intercepts) and \verb{$kkt} (the worst nodewise
 stationarity residual).
 }

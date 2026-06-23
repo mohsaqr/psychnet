@@ -14,6 +14,7 @@ huge_network(
   lambda_min_ratio = 0.01,
   threshold = 0,
   na_method = c("pairwise", "listwise"),
+  engine = c("base", "glasso"),
   labels = NULL
 )
 }
@@ -42,10 +43,13 @@ zeroed. Default 0.}
 (default, with the nonparanormal transform applied per column over observed
 values) or \code{"listwise"}. See \code{\link[=ebic_glasso]{ebic_glasso()}}.}
 
+\item{engine}{Solver for the glasso path: \code{"base"} (default, pure R) or
+\code{"glasso"} (the Fortran package, in \code{Suggests}). See \code{\link[=ebic_glasso]{ebic_glasso()}}.}
+
 \item{labels}{Optional node labels.}
 }
 \value{
-A \code{psychnet} object whose \verb{$graph} is the partial-correlation matrix,
+A \code{psychnet} object whose \verb{$weights} is the partial-correlation matrix,
 with \verb{$precision}, \verb{$lambda}, \verb{$gamma}, \verb{$cor_matrix} (the transformed
 correlation), \verb{$npn}, \verb{$ebic}, and \verb{$kkt}.
 }

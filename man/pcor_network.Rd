@@ -8,7 +8,7 @@ pcor_network(
   data = NULL,
   cor_matrix = NULL,
   n = NULL,
-  cor_method = c("pearson", "spearman", "kendall"),
+  cor_method = c("pearson", "spearman", "kendall", "auto"),
   threshold = 0,
   alpha = NULL,
   adjust = "none",
@@ -26,8 +26,9 @@ is ignored and \code{n} is required when \code{alpha} is used.}
 \item{n}{Sample size (needed for significance testing when \code{cor_matrix} is
 supplied).}
 
-\item{cor_method}{Correlation method: \code{"pearson"} (default), \code{"spearman"}, or
-\code{"kendall"}.}
+\item{cor_method}{Correlation method: \code{"pearson"} (default), \code{"spearman"},
+\code{"kendall"}, or \code{"auto"} (polychoric/polyserial for ordinal items, the
+\code{qgraph::cor_auto} default; see \code{\link[=cor_auto]{cor_auto()}}).}
 
 \item{threshold}{Correlations with absolute value below this are set to zero.
 Default 0.}
@@ -46,7 +47,7 @@ complete.}
 \item{labels}{Optional node labels.}
 }
 \value{
-A \code{psychnet} object whose \verb{$graph} is the thresholded
+A \code{psychnet} object whose \verb{$weights} is the thresholded
 partial-correlation matrix, with \verb{$precision}, \verb{$cor_matrix} (and
 \verb{$p_values} when \code{alpha} is used).
 }

@@ -41,14 +41,14 @@
 #'   `cor_matrix` is supplied.
 #' @param cor_matrix Optional correlation matrix; if given, `n` is required.
 #' @param n Sample size (recorded on the result; required with `cor_matrix`).
-#' @param cor_method Correlation method when `data` is supplied: `"pearson"`
-#'   (default), `"spearman"`, or `"kendall"`.
+#' @param cor_method Correlation when `data` is supplied: `"pearson"` (default),
+#'   `"spearman"`, `"kendall"`, or `"auto"` (polychoric/polyserial; see [cor_auto()]).
 #' @param threshold Partial correlations with absolute value below this are
 #'   zeroed. Default 0.
 #' @param na_method Missing-data handling when `data` is supplied: `"pairwise"`
 #'   (default) or `"listwise"`. See [ebic_glasso()].
 #' @param labels Optional node labels.
-#' @return A `psychnet` object whose `$graph` is the partial-correlation matrix,
+#' @return A `psychnet` object whose `$weights` is the partial-correlation matrix,
 #'   with `$precision`, `$support` (the TMFG graph), `$cor_matrix`, and `$kkt`.
 #' @examples
 #' set.seed(1)
@@ -56,7 +56,7 @@
 #' logo_network(x)
 #' @export
 logo_network <- function(data = NULL, cor_matrix = NULL, n = NULL,
-                         cor_method = c("pearson", "spearman", "kendall"),
+                         cor_method = c("pearson", "spearman", "kendall", "auto"),
                          threshold = 0, na_method = c("pairwise", "listwise"),
                          labels = NULL) {
   cor_method <- match.arg(cor_method)

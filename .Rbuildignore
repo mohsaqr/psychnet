@@ -16,3 +16,4 @@
 ^CHANGES\.md$
 ^CLAUDE\.md$
 ^validation$
+^AGENT-NOTE.*

@@ -50,7 +50,7 @@ MASS_ginv <- function(A, tol = sqrt(.Machine$double.eps)) {
 #' @param na_method Missing-data handling: `"pairwise"` (default, mode-impute) or
 #'   `"listwise"`. See [ising_fit()].
 #' @param labels Optional node labels.
-#' @return A `psychnet` object whose `$graph` is the symmetric weight matrix,
+#' @return A `psychnet` object whose `$weights` is the symmetric weight matrix,
 #'   with `$thresholds` (node intercepts), `$rule`, `$p_values`, `$nodewise`
 #'   (for [predictability()]), and `$kkt` (worst nodewise score residual).
 #' @examples

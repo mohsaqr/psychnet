@@ -13,7 +13,9 @@ ggm_modselect(
   nlambda = 100L,
   lambda_min_ratio = 0.01,
   threshold = 0,
+  cor_method = c("pearson", "spearman", "kendall", "auto"),
   na_method = c("pairwise", "listwise"),
+  engine = c("base", "glasso"),
   labels = NULL
 )
 }
@@ -37,13 +39,21 @@ greedy single-edge add/drop search.}
 \item{threshold}{Partial correlations with absolute value below this are
 zeroed. Default 0.}
 
+\item{cor_method}{Correlation used when \code{data} is supplied: \code{"pearson"}
+(default), \code{"spearman"}, \code{"kendall"}, or \code{"auto"} (polychoric/polyserial,
+the \code{qgraph}/\code{bootnet} default for ordinal items). See \code{\link[=cor_auto]{cor_auto()}}.}
+
 \item{na_method}{Missing-data handling when \code{data} is supplied: \code{"pairwise"}
 (default) or \code{"listwise"}. See \code{\link[=ebic_glasso]{ebic_glasso()}}.}
+
+\item{engine}{Solver used to generate candidate supports: \code{"base"} (default,
+pure R) or \code{"glasso"} (the Fortran package, in \code{Suggests}). The reported
+precision is the unregularized refit either way. See \code{\link[=ebic_glasso]{ebic_glasso()}}.}
 
 \item{labels}{Optional node labels.}
 }
 \value{
-A \code{psychnet} object whose \verb{$graph} is the partial-correlation matrix,
+A \code{psychnet} object whose \verb{$weights} is the partial-correlation matrix,
 with \verb{$precision}, \verb{$support} (the selected graph), \verb{$gamma}, \verb{$ebic},
 \verb{$cor_matrix}, and \verb{$kkt}.
 }

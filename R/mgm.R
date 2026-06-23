@@ -46,7 +46,7 @@
 #'   each column over its observed values (mean for continuous, mode for binary),
 #'   keeping the full sample; `"listwise"` drops incomplete rows.
 #' @param labels Optional node labels.
-#' @return A `psychnet` object whose `$graph` is the symmetric standardized
+#' @return A `psychnet` object whose `$weights` is the symmetric standardized
 #'   weight matrix, with `$types` and `$kkt` (the worst nodewise residual). A
 #'   binary-binary edge carries the sign of its nodewise-logistic coefficient;
 #'   `mgm::mgm()` reports the same edge as a magnitude only (its sign is

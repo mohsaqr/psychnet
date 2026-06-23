@@ -70,7 +70,7 @@ nct <- function(data1, data2, iter = 1000L, gamma = 0.5,
     cx[is.na(cx)] <- 0
     diag(cx) <- 1
     cor_x <- .nearest_pd_cor(cx)
-    ebic_glasso(cor_matrix = cor_x, n = nrow(x), gamma = gamma)$graph
+    ebic_glasso(cor_matrix = cor_x, n = nrow(x), gamma = gamma)$weights
   }
   binarize <- function(m) (m != 0) * 1
 

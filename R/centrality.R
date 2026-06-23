@@ -16,8 +16,8 @@
 #' @export
 centrality <- function(x, ...) {
   if (inherits(x, "psychnet")) {
-    g <- x$graph
-    labs <- x$labels
+    g <- x$weights
+    labs <- x$nodes$label
   } else {
     g <- as.matrix(x)
     if (nrow(g) != ncol(g)) {

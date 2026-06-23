@@ -77,8 +77,10 @@
 #' @param na_method Missing-data handling when `data` is supplied: `"pairwise"`
 #'   (default, with the nonparanormal transform applied per column over observed
 #'   values) or `"listwise"`. See [ebic_glasso()].
+#' @param engine Solver for the glasso path: `"base"` (default, pure R) or
+#'   `"glasso"` (the Fortran package, in `Suggests`). See [ebic_glasso()].
 #' @param labels Optional node labels.
-#' @return A `psychnet` object whose `$graph` is the partial-correlation matrix,
+#' @return A `psychnet` object whose `$weights` is the partial-correlation matrix,
 #'   with `$precision`, `$lambda`, `$gamma`, `$cor_matrix` (the transformed
 #'   correlation), `$npn`, `$ebic`, and `$kkt`.
 #' @examples
@@ -91,9 +93,10 @@ huge_network <- function(data = NULL, cor_matrix = NULL, n = NULL,
                          npn = c("shrinkage", "truncation", "skeptic"),
                          gamma = 0.5, nlambda = 100L, lambda_min_ratio = 0.01,
                          threshold = 0, na_method = c("pairwise", "listwise"),
-                         labels = NULL) {
+                         engine = c("base", "glasso"), labels = NULL) {
   npn <- match.arg(npn)
   na_method <- match.arg(na_method)
+  engine <- .check_engine(engine)
   if (is.null(cor_matrix)) {
     mat <- .as_numeric_matrix(data, drop_na = FALSE)
     if (is.null(labels)) labels <- colnames(mat)
@@ -120,7 +123,7 @@ huge_network <- function(data = NULL, cor_matrix = NULL, n = NULL,
     sel <- .empty_glasso(S, n)
   } else {
     lambda_path <- .compute_lambda_path(S, nlambda, lambda_min_ratio)
-    sel <- .select_ebic(S, lambda_path, n, gamma)
+    sel <- .select_ebic(S, lambda_path, n, gamma, engine = engine)
   }
 
   pcor <- .precision_to_pcor(sel$wi)

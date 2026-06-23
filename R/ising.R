@@ -46,7 +46,7 @@
 #'   each column over its observed values (mode for binary), keeping the full
 #'   sample; `"listwise"` drops incomplete rows. Identical for complete data.
 #' @param labels Optional node labels.
-#' @return A `psychnet` object whose `$graph` is the symmetric weight matrix,
+#' @return A `psychnet` object whose `$weights` is the symmetric weight matrix,
 #'   with `$thresholds` (node intercepts) and `$kkt` (the worst nodewise
 #'   stationarity residual).
 #' @examples

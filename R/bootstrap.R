@@ -59,12 +59,12 @@ bootstrap_network <- function(data, method = "EBICglasso", n_boot = 1000L,
   if (is.null(labels)) labels <- colnames(mat)
 
   obs <- estimate_network(mat, method = method, labels = labels, ...)
-  p <- obs$n_nodes
-  # Directed estimators (e.g. relimp) have an asymmetric graph: take every
+  p <- nrow(obs$nodes)
+  # Directed estimators (e.g. relimp) have an asymmetric network: take every
   # off-diagonal cell, not just the upper triangle.
-  ut <- if (isTRUE(obs$directed)) row(obs$graph) != col(obs$graph)
-        else upper.tri(obs$graph)
-  obs_edges <- obs$graph[ut]
+  ut <- if (isTRUE(obs$directed)) row(obs$weights) != col(obs$weights)
+        else upper.tri(obs$weights)
+  obs_edges <- obs$weights[ut]
   obs_cent  <- centrality(obs)
   cores <- .resolve_cores(cores)
 
@@ -80,7 +80,7 @@ bootstrap_network <- function(data, method = "EBICglasso", n_boot = 1000L,
       error = function(e) NULL)
     if (is.null(fit)) return(NULL)
     ct <- centrality(fit)
-    list(edge = fit$graph[ut], strength = ct$strength,
+    list(edge = fit$weights[ut], strength = ct$strength,
          ei = ct$expected_influence)
   }
 

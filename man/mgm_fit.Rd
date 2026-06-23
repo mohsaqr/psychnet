@@ -45,7 +45,7 @@ keeping the full sample; \code{"listwise"} drops incomplete rows.}
 \item{labels}{Optional node labels.}
 }
 \value{
-A \code{psychnet} object whose \verb{$graph} is the symmetric standardized
+A \code{psychnet} object whose \verb{$weights} is the symmetric standardized
 weight matrix, with \verb{$types} and \verb{$kkt} (the worst nodewise residual). A
 binary-binary edge carries the sign of its nodewise-logistic coefficient;
 \code{mgm::mgm()} reports the same edge as a magnitude only (its sign is

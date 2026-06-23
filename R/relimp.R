@@ -58,7 +58,7 @@
 #' lmg_certificate(relimp_network(cor_matrix = S))
 #' @export
 lmg_certificate <- function(x) {
-  max(abs(colSums(x$graph) - x$r2))
+  max(abs(colSums(x$weights) - x$r2))
 }
 
 #' Relative-importance network (LMG / Shapley)
@@ -72,15 +72,15 @@ lmg_certificate <- function(x) {
 #' @param data Numeric data frame or matrix (rows = observations). Optional if
 #'   `cor_matrix` is supplied.
 #' @param cor_matrix Optional correlation matrix.
-#' @param cor_method Correlation method when `data` is supplied: `"pearson"`
-#'   (default), `"spearman"`, or `"kendall"`.
+#' @param cor_method Correlation when `data` is supplied: `"pearson"` (default),
+#'   `"spearman"`, `"kendall"`, or `"auto"` (polychoric/polyserial; see [cor_auto()]).
 #' @param max_nodes Refuse to run above this many nodes (the cost grows as
 #'   `2^(p-1)` per node). Default 21.
 #' @param na_method Missing-data handling when `data` is supplied: `"pairwise"`
 #'   (default) or `"listwise"`. See [ebic_glasso()].
 #' @param labels Optional node labels.
-#' @return A `psychnet` object whose `$graph` is the directed importance matrix
-#'   (`graph[k, j]` = importance of `k` for outcome `j`), with `$r2` (per-node
+#' @return A `psychnet` object whose `$weights` is the directed importance matrix
+#'   (`weights[k, j]` = importance of `k` for outcome `j`), with `$r2` (per-node
 #'   full-model R-squared), `$cor_matrix`, and `$kkt` (the decomposition
 #'   residual).
 #' @examples
@@ -88,7 +88,7 @@ lmg_certificate <- function(x) {
 #' relimp_network(cor_matrix = S)
 #' @export
 relimp_network <- function(data = NULL, cor_matrix = NULL,
-                           cor_method = c("pearson", "spearman", "kendall"),
+                           cor_method = c("pearson", "spearman", "kendall", "auto"),
                            max_nodes = 21L,
                            na_method = c("pairwise", "listwise"), labels = NULL) {
   cor_method <- match.arg(cor_method)

@@ -38,9 +38,23 @@
 # usable labels.
 #' @noRd
 .cor_input <- function(data, method = "pearson",
-                       na_method = c("pairwise", "listwise")) {
+                       na_method = c("pairwise", "listwise"),
+                       ordinal_max_levels = 7L) {
   na_method <- match.arg(na_method)
   mat <- .as_numeric_matrix(data, drop_na = FALSE)
+  if (method == "auto") {                           # polychoric / polyserial
+    if (na_method == "listwise") {
+      mat <- mat[stats::complete.cases(mat), , drop = FALSE]
+    }
+    if (nrow(mat) < 2L) stop("Need at least 2 observations.", call. = FALSE)
+    has_na <- anyNA(mat)
+    S <- .cor_auto_matrix(mat, ordinal_max_levels)
+    n <- if (has_na) {
+      co <- crossprod(!is.na(mat)); max(round(stats::median(co[upper.tri(co)])), 2L)
+    } else nrow(mat)
+    return(list(S = S, n = n, labels = colnames(mat),
+                na_method = if (has_na) "pairwise" else "listwise"))
+  }
   if (!anyNA(mat) || na_method == "listwise") {
     mat <- mat[stats::complete.cases(mat), , drop = FALSE]
     if (nrow(mat) < 2L) stop("Need at least 2 complete observations.", call. = FALSE)
@@ -130,8 +144,9 @@
 #'   is ignored and `n` is required when `alpha` is used.
 #' @param n Sample size (needed for significance testing when `cor_matrix` is
 #'   supplied).
-#' @param cor_method Correlation method: `"pearson"` (default), `"spearman"`, or
-#'   `"kendall"`.
+#' @param cor_method Correlation method: `"pearson"` (default), `"spearman"`,
+#'   `"kendall"`, or `"auto"` (polychoric/polyserial for ordinal items, the
+#'   `qgraph::cor_auto` default; see [cor_auto()]).
 #' @param threshold Correlations with absolute value below this are set to zero.
 #'   Default 0.
 #' @param alpha Significance level; if set, correlations not significant at
@@ -143,7 +158,7 @@
 #'   matrix; `"listwise"` drops rows with any `NA`. Identical when data is
 #'   complete.
 #' @param labels Optional node labels.
-#' @return A `psychnet` object whose `$graph` is the thresholded correlation
+#' @return A `psychnet` object whose `$weights` is the thresholded correlation
 #'   matrix, with `$cor_matrix`, `$n_eff`, `$na_method` (and `$p_values` when
 #'   `alpha` is used).
 #' @examples
@@ -152,7 +167,7 @@
 #' cor_network(x, alpha = 0.05, adjust = "BH")
 #' @export
 cor_network <- function(data = NULL, cor_matrix = NULL, n = NULL,
-                        cor_method = c("pearson", "spearman", "kendall"),
+                        cor_method = c("pearson", "spearman", "kendall", "auto"),
                         threshold = 0, alpha = NULL, adjust = "none",
                         na_method = c("pairwise", "listwise"), labels = NULL) {
   cor_method <- match.arg(cor_method)
@@ -195,7 +210,7 @@ cor_network <- function(data = NULL, cor_matrix = NULL, n = NULL,
 #' inverse correlation matrix. Equivalent to `bootnet`'s `"pcor"` default.
 #'
 #' @inheritParams cor_network
-#' @return A `psychnet` object whose `$graph` is the thresholded
+#' @return A `psychnet` object whose `$weights` is the thresholded
 #'   partial-correlation matrix, with `$precision`, `$cor_matrix` (and
 #'   `$p_values` when `alpha` is used).
 #' @examples
@@ -204,7 +219,7 @@ cor_network <- function(data = NULL, cor_matrix = NULL, n = NULL,
 #' pcor_network(x, alpha = 0.05, adjust = "holm")
 #' @export
 pcor_network <- function(data = NULL, cor_matrix = NULL, n = NULL,
-                         cor_method = c("pearson", "spearman", "kendall"),
+                         cor_method = c("pearson", "spearman", "kendall", "auto"),
                          threshold = 0, alpha = NULL, adjust = "none",
                          na_method = c("pairwise", "listwise"), labels = NULL) {
   cor_method <- match.arg(cor_method)

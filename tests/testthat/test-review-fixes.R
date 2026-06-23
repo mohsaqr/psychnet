@@ -173,6 +173,27 @@ test_that("estimate_network does not override ising/mgm native gamma (0.25)", {
                ising_fit(b, gamma = 0.5)$graph)                               # override
 })
 
+# ---- lean netobject-compatible output shape --------------------------------
+
+test_that("a fitted network has the lean netobject shape and cograph class", {
+  fit <- ebic_glasso(cor_matrix = 0.4^abs(outer(1:5, 1:5, "-")), n = 250)
+  expect_s3_class(fit, "cograph_network")
+  # canonical (str-visible) fields, netobject-aligned
+  expect_true(all(c("weights", "nodes", "edges", "directed", "method", "n") %in%
+                    names(fit)))
+  expect_true(is.matrix(fit$weights) && all(diag(fit$weights) == 0))
+  expect_named(fit$nodes, c("id", "label", "name"))
+  expect_named(fit$edges, c("from", "to", "weight"))
+  expect_identical(as.data.frame(fit), fit$edges)
+  # derivable counts are no longer stored as fields...
+  expect_false(any(c("graph", "n_nodes", "n_edges", "n_obs") %in% names(fit)))
+  # ...but the legacy accessors still resolve via the alias
+  expect_identical(fit$graph, fit$weights)
+  expect_equal(fit$n_nodes, 5L)
+  expect_equal(fit$n_edges, nrow(fit$edges))
+  expect_equal(fit$n_obs, fit$n)
+})
+
 # ---- closed reference gaps -------------------------------------------------
 
 test_that("mgm_fit gains an AND/OR rule (OR keeps at least as many edges)", {

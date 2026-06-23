@@ -12,7 +12,9 @@ ebic_glasso(
   nlambda = 100L,
   lambda_min_ratio = 0.01,
   threshold = 0,
+  cor_method = c("pearson", "spearman", "kendall", "auto"),
   na_method = c("pairwise", "listwise"),
+  engine = c("base", "glasso"),
   labels = NULL
 )
 }
@@ -35,16 +37,27 @@ Default 0.01.}
 \item{threshold}{Partial correlations with absolute value below this are set
 to zero. Default 0.}
 
+\item{cor_method}{Correlation used when \code{data} is supplied: \code{"pearson"}
+(default), \code{"spearman"}, \code{"kendall"}, or \code{"auto"} (polychoric/polyserial
+for ordinal items, the \code{qgraph::cor_auto} / \code{bootnet} default). See
+\code{\link[=cor_auto]{cor_auto()}}.}
+
 \item{na_method}{Missing-data handling when \code{data} is supplied: \code{"pairwise"}
 (default, pairwise-complete correlations + nearest-PD projection) or
 \code{"listwise"} (drop incomplete rows). Identical for complete data.}
 
+\item{engine}{Solver: \code{"base"} (default) is the pure-R, dependency-free,
+self-certified solver; \code{"glasso"} delegates each fixed-penalty solve to the
+\code{glasso} Fortran package (in \code{Suggests}) for speed and byte-identical
+\code{glasso}/\code{qgraph} output, at its looser convergence (the reported \verb{$kkt}
+then shows glasso's tolerance rather than ~1e-11).}
+
 \item{labels}{Optional node labels.}
 }
 \value{
-A \code{psychnet} object whose \verb{$graph} is the partial-correlation matrix,
-with \verb{$precision}, \verb{$lambda}, \verb{$gamma}, \verb{$cor_matrix}, \verb{$ebic}, and \verb{$kkt}
-(the stationarity residual of the returned network).
+A \code{psychnet} object whose \verb{$weights} is the partial-correlation matrix,
+with \verb{$precision}, \verb{$lambda}, \verb{$gamma}, \verb{$cor_matrix}, \verb{$ebic}, \verb{$engine},
+and \verb{$kkt} (the stationarity residual of the returned network).
 }
 \description{
 Selects an L1 penalty by the extended BIC (Foygel & Drton 2010) over a

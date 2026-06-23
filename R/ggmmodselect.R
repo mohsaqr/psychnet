@@ -77,10 +77,16 @@
 #' @param lambda_min_ratio Smallest penalty as a fraction of the largest.
 #' @param threshold Partial correlations with absolute value below this are
 #'   zeroed. Default 0.
+#' @param cor_method Correlation used when `data` is supplied: `"pearson"`
+#'   (default), `"spearman"`, `"kendall"`, or `"auto"` (polychoric/polyserial,
+#'   the `qgraph`/`bootnet` default for ordinal items). See [cor_auto()].
 #' @param na_method Missing-data handling when `data` is supplied: `"pairwise"`
 #'   (default) or `"listwise"`. See [ebic_glasso()].
+#' @param engine Solver used to generate candidate supports: `"base"` (default,
+#'   pure R) or `"glasso"` (the Fortran package, in `Suggests`). The reported
+#'   precision is the unregularized refit either way. See [ebic_glasso()].
 #' @param labels Optional node labels.
-#' @return A `psychnet` object whose `$graph` is the partial-correlation matrix,
+#' @return A `psychnet` object whose `$weights` is the partial-correlation matrix,
 #'   with `$precision`, `$support` (the selected graph), `$gamma`, `$ebic`,
 #'   `$cor_matrix`, and `$kkt`.
 #' @examples
@@ -90,11 +96,14 @@
 ggm_modselect <- function(data = NULL, cor_matrix = NULL, n = NULL,
                           gamma = 0.5, stepwise = TRUE, nlambda = 100L,
                           lambda_min_ratio = 0.01, threshold = 0,
+                          cor_method = c("pearson", "spearman", "kendall", "auto"),
                           na_method = c("pairwise", "listwise"),
-                          labels = NULL) {
+                          engine = c("base", "glasso"), labels = NULL) {
   na_method <- match.arg(na_method)
+  cor_method <- match.arg(cor_method)
+  engine <- .check_engine(engine)
   if (is.null(cor_matrix)) {
-    ci <- .cor_input(data, na_method = na_method)
+    ci <- .cor_input(data, method = cor_method, na_method = na_method)
     S <- ci$S; n <- ci$n
     if (is.null(labels)) labels <- ci$labels
   } else {
@@ -121,7 +130,7 @@ ggm_modselect <- function(data = NULL, cor_matrix = NULL, n = NULL,
   seen <- character(0)
   best_ebic <- Inf; best_support <- NULL; best_theta <- NULL
   for (lam in lambda_path) {
-    wi <- tryCatch(.glasso_fit(S, lam, tol_outer = 1e-4, tol_inner = 1e-4)$wi,
+    wi <- tryCatch(.glasso_solve(S, lam, engine, 1e-4, 1e-4)$wi,
                    error = function(e) NULL)
     if (is.null(wi)) next
     sup <- (abs(wi) > 1e-6) & upper.tri(wi)

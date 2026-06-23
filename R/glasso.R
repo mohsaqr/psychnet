@@ -97,8 +97,37 @@
   list(wi = wi, lambda = 0, ebic = ebic, ebic_path = ebic)
 }
 
+# Validate the solve engine. "base" is the pure-R FHT-2008 solver (default,
+# dependency-free, self-certified); "glasso" delegates each fixed-penalty solve
+# to the glasso Fortran package (opt-in, Suggests) for speed and byte-identical
+# parity with qgraph/bootnet, at the cost of glasso's looser convergence.
+#' @noRd
+.check_engine <- function(engine) {
+  engine <- match.arg(engine, c("base", "glasso"))
+  if (engine == "glasso" && !requireNamespace("glasso", quietly = TRUE)) {
+    stop("engine = \"glasso\" needs the 'glasso' package; install it or use ",
+         "engine = \"base\".", call. = FALSE)
+  }
+  engine
+}
+
+# One fixed-penalty graphical-lasso solve, dispatched by engine. Returns
+# list(wi, w, beta) (beta is NULL for the glasso engine). The base path is
+# unchanged, so engine = "base" is byte-identical to the previous behaviour.
+#' @noRd
+.glasso_solve <- function(S, rho, engine, tol_outer, tol_inner, warm = NULL) {
+  if (engine == "base") {
+    return(.glasso_fit(S, rho, tol_outer = tol_outer, tol_inner = tol_inner,
+                       w_init = warm$w, beta_init = warm$beta))
+  }
+  g <- glasso::glasso(S, rho, penalize.diagonal = FALSE, thr = tol_outer)
+  wi <- (g$wi + t(g$wi)) / 2
+  dimnames(wi) <- dimnames(S)
+  list(wi = wi, w = g$w, beta = NULL)
+}
+
 # --- two-tier EBIC selection: fast scan, then tight refit at the winner ------
-.select_ebic <- function(S, lambda_path, n, gamma,
+.select_ebic <- function(S, lambda_path, n, gamma, engine = "base",
                          scan_tol = 1e-4, refit_tol = 1e-8) {
   p <- ncol(S)
   ebic_vals <- numeric(length(lambda_path))
@@ -107,8 +136,8 @@
 
   for (i in seq_along(lambda_path)) {
     fit <- tryCatch(
-      .glasso_fit(S, lambda_path[i], tol_outer = scan_tol, tol_inner = scan_tol,
-                  w_init = w_prev, beta_init = beta_prev),
+      .glasso_solve(S, lambda_path[i], engine, scan_tol, scan_tol,
+                    warm = list(w = w_prev, beta = beta_prev)),
       error = function(e) NULL
     )
     if (is.null(fit)) { ebic_vals[i] <- Inf; next }
@@ -127,8 +156,12 @@
   if (!have_best) stop("All glasso fits failed; check the input data.",
                        call. = FALSE)
 
-  best_wi <- .glasso_fit(S, lambda_path[best_idx],
-                         tol_outer = refit_tol, tol_inner = refit_tol * 1e-2)$wi
+  # base refits to the certified optimum; glasso stays at its own tolerance so
+  # the result is exactly what the glasso package returns.
+  refit_outer <- if (engine == "glasso") scan_tol else refit_tol
+  refit_inner <- if (engine == "glasso") scan_tol else refit_tol * 1e-2
+  best_wi <- .glasso_solve(S, lambda_path[best_idx], engine,
+                           refit_outer, refit_inner)$wi
   dimnames(best_wi) <- dimnames(S)
   list(wi = best_wi, lambda = lambda_path[best_idx], ebic = best_ebic,
        ebic_path = ebic_vals)
@@ -241,13 +274,22 @@ ggm_support_kkt <- function(theta, cor_matrix, support, active_tol = 1e-8) {
 #'   Default 0.01.
 #' @param threshold Partial correlations with absolute value below this are set
 #'   to zero. Default 0.
+#' @param cor_method Correlation used when `data` is supplied: `"pearson"`
+#'   (default), `"spearman"`, `"kendall"`, or `"auto"` (polychoric/polyserial
+#'   for ordinal items, the `qgraph::cor_auto` / `bootnet` default). See
+#'   [cor_auto()].
 #' @param na_method Missing-data handling when `data` is supplied: `"pairwise"`
 #'   (default, pairwise-complete correlations + nearest-PD projection) or
 #'   `"listwise"` (drop incomplete rows). Identical for complete data.
+#' @param engine Solver: `"base"` (default) is the pure-R, dependency-free,
+#'   self-certified solver; `"glasso"` delegates each fixed-penalty solve to the
+#'   `glasso` Fortran package (in `Suggests`) for speed and byte-identical
+#'   `glasso`/`qgraph` output, at its looser convergence (the reported `$kkt`
+#'   then shows glasso's tolerance rather than ~1e-11).
 #' @param labels Optional node labels.
-#' @return A `psychnet` object whose `$graph` is the partial-correlation matrix,
-#'   with `$precision`, `$lambda`, `$gamma`, `$cor_matrix`, `$ebic`, and `$kkt`
-#'   (the stationarity residual of the returned network).
+#' @return A `psychnet` object whose `$weights` is the partial-correlation matrix,
+#'   with `$precision`, `$lambda`, `$gamma`, `$cor_matrix`, `$ebic`, `$engine`,
+#'   and `$kkt` (the stationarity residual of the returned network).
 #' @examples
 #' S <- 0.4^abs(outer(1:6, 1:6, "-"))
 #' fit <- ebic_glasso(cor_matrix = S, n = 250)
@@ -256,11 +298,15 @@ ggm_support_kkt <- function(theta, cor_matrix, support, active_tol = 1e-8) {
 #' @export
 ebic_glasso <- function(data = NULL, cor_matrix = NULL, n = NULL,
                         gamma = 0.5, nlambda = 100L, lambda_min_ratio = 0.01,
-                        threshold = 0, na_method = c("pairwise", "listwise"),
-                        labels = NULL) {
+                        threshold = 0,
+                        cor_method = c("pearson", "spearman", "kendall", "auto"),
+                        na_method = c("pairwise", "listwise"),
+                        engine = c("base", "glasso"), labels = NULL) {
   na_method <- match.arg(na_method)
+  cor_method <- match.arg(cor_method)
+  engine <- .check_engine(engine)
   if (is.null(cor_matrix)) {
-    ci <- .cor_input(data, na_method = na_method)
+    ci <- .cor_input(data, method = cor_method, na_method = na_method)
     S <- ci$S; n <- ci$n
     if (is.null(labels)) labels <- ci$labels
   } else {
@@ -280,7 +326,7 @@ ebic_glasso <- function(data = NULL, cor_matrix = NULL, n = NULL,
     sel <- .empty_glasso(S, n); lambda_path <- 0
   } else {
     lambda_path <- .compute_lambda_path(S, nlambda, lambda_min_ratio)
-    sel <- .select_ebic(S, lambda_path, n, gamma)
+    sel <- .select_ebic(S, lambda_path, n, gamma, engine = engine)
   }
 
   pcor <- .precision_to_pcor(sel$wi)
@@ -293,7 +339,7 @@ ebic_glasso <- function(data = NULL, cor_matrix = NULL, n = NULL,
     extra = list(
       precision = sel$wi, lambda = sel$lambda, gamma = gamma,
       cor_matrix = S, ebic = sel$ebic, ebic_path = sel$ebic_path,
-      lambda_path = lambda_path, na_method = na_method,
+      lambda_path = lambda_path, na_method = na_method, engine = engine,
       kkt = glasso_kkt(sel$wi, S, sel$lambda)
     )
   )

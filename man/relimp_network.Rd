@@ -7,7 +7,7 @@
 relimp_network(
   data = NULL,
   cor_matrix = NULL,
-  cor_method = c("pearson", "spearman", "kendall"),
+  cor_method = c("pearson", "spearman", "kendall", "auto"),
   max_nodes = 21L,
   na_method = c("pairwise", "listwise"),
   labels = NULL
@@ -19,8 +19,8 @@ relimp_network(
 
 \item{cor_matrix}{Optional correlation matrix.}
 
-\item{cor_method}{Correlation method when \code{data} is supplied: \code{"pearson"}
-(default), \code{"spearman"}, or \code{"kendall"}.}
+\item{cor_method}{Correlation when \code{data} is supplied: \code{"pearson"} (default),
+\code{"spearman"}, \code{"kendall"}, or \code{"auto"} (polychoric/polyserial; see \code{\link[=cor_auto]{cor_auto()}}).}
 
 \item{max_nodes}{Refuse to run above this many nodes (the cost grows as
 \code{2^(p-1)} per node). Default 21.}
@@ -31,8 +31,8 @@ relimp_network(
 \item{labels}{Optional node labels.}
 }
 \value{
-A \code{psychnet} object whose \verb{$graph} is the directed importance matrix
-(\code{graph[k, j]} = importance of \code{k} for outcome \code{j}), with \verb{$r2} (per-node
+A \code{psychnet} object whose \verb{$weights} is the directed importance matrix
+(\code{weights[k, j]} = importance of \code{k} for outcome \code{j}), with \verb{$r2} (per-node
 full-model R-squared), \verb{$cor_matrix}, and \verb{$kkt} (the decomposition
 residual).
 }

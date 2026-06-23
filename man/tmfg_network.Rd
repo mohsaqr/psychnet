@@ -7,7 +7,7 @@
 tmfg_network(
   data = NULL,
   cor_matrix = NULL,
-  cor_method = c("pearson", "spearman", "kendall"),
+  cor_method = c("pearson", "spearman", "kendall", "auto"),
   na_method = c("pairwise", "listwise"),
   labels = NULL
 )
@@ -18,8 +18,8 @@ tmfg_network(
 
 \item{cor_matrix}{Optional correlation matrix.}
 
-\item{cor_method}{Correlation method when \code{data} is supplied: \code{"pearson"}
-(default), \code{"spearman"}, or \code{"kendall"}.}
+\item{cor_method}{Correlation when \code{data} is supplied: \code{"pearson"} (default),
+\code{"spearman"}, \code{"kendall"}, or \code{"auto"} (polychoric/polyserial; see \code{\link[=cor_auto]{cor_auto()}}).}
 
 \item{na_method}{Missing-data handling when \code{data} is supplied: \code{"pairwise"}
 (default) or \code{"listwise"}. See \code{\link[=ebic_glasso]{ebic_glasso()}}.}
@@ -27,7 +27,7 @@ tmfg_network(
 \item{labels}{Optional node labels.}
 }
 \value{
-A \code{psychnet} object whose \verb{$graph} is the filtered (signed)
+A \code{psychnet} object whose \verb{$weights} is the filtered (signed)
 correlation matrix on the retained edges, with \verb{$adjacency}, \verb{$cliques},
 \verb{$separators} (the chordal decomposition used by \code{\link[=logo_network]{logo_network()}}), and
 \verb{$cor_matrix}.

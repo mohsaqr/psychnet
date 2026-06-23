@@ -8,7 +8,7 @@ logo_network(
   data = NULL,
   cor_matrix = NULL,
   n = NULL,
-  cor_method = c("pearson", "spearman", "kendall"),
+  cor_method = c("pearson", "spearman", "kendall", "auto"),
   threshold = 0,
   na_method = c("pairwise", "listwise"),
   labels = NULL
@@ -22,8 +22,8 @@ logo_network(
 
 \item{n}{Sample size (recorded on the result; required with \code{cor_matrix}).}
 
-\item{cor_method}{Correlation method when \code{data} is supplied: \code{"pearson"}
-(default), \code{"spearman"}, or \code{"kendall"}.}
+\item{cor_method}{Correlation when \code{data} is supplied: \code{"pearson"} (default),
+\code{"spearman"}, \code{"kendall"}, or \code{"auto"} (polychoric/polyserial; see \code{\link[=cor_auto]{cor_auto()}}).}
 
 \item{threshold}{Partial correlations with absolute value below this are
 zeroed. Default 0.}
@@ -34,7 +34,7 @@ zeroed. Default 0.}
 \item{labels}{Optional node labels.}
 }
 \value{
-A \code{psychnet} object whose \verb{$graph} is the partial-correlation matrix,
+A \code{psychnet} object whose \verb{$weights} is the partial-correlation matrix,
 with \verb{$precision}, \verb{$support} (the TMFG graph), \verb{$cor_matrix}, and \verb{$kkt}.
 }
 \description{

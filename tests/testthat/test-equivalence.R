@@ -59,6 +59,26 @@ test_that("EBICglasso matches qgraph::EBICglasso on a clear chain", {
   expect_lt(pn$kkt, 1e-7)
 })
 
+test_that("engine = 'glasso' is byte-identical to the glasso package", {
+  skip_equiv("glasso")
+  set.seed(10)
+  p <- 8; n <- 500
+  X <- matrix(stats::rnorm(n * p), n, p) %*% chol(ar1(p, 0.5))
+  S <- stats::cor(X)
+
+  fast <- ebic_glasso(cor_matrix = S, n = n, engine = "glasso")
+  g <- glasso::glasso(S, fast$lambda, penalize.diagonal = FALSE)
+  expect_equal(fast$precision, (g$wi + t(g$wi)) / 2, ignore_attr = TRUE)
+  expect_identical(fast$engine, "glasso")
+
+  # same edge set as the certified base engine; the certificate reflects the
+  # solver: base reaches ~1e-9, the glasso engine sits at its own tolerance.
+  base <- ebic_glasso(cor_matrix = S, n = n)
+  expect_equal(off_compare(base$weights, fast$weights)$struct, 1)
+  expect_lt(base$kkt, 1e-7)
+  expect_gt(fast$kkt, base$kkt)
+})
+
 test_that("ising_fit matches IsingFit::IsingFit on a binary chain", {
   skip_equiv("IsingFit")
   set.seed(2)
