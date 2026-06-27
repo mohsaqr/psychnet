@@ -48,10 +48,10 @@
 #' set.seed(1)
 #' x <- matrix(stats::rnorm(150 * 5), 150, 5) %*% chol(0.4^abs(outer(1:5, 1:5, "-")))
 #' colnames(x) <- paste0("V", 1:5)
-#' bs <- bootstrap_network(x, n_boot = 50, cores = 1)
+#' bs <- net_boot(x, n_boot = 50, cores = 1)
 #' as.data.frame(bs)
 #' @export
-bootstrap_network <- function(data, method = "EBICglasso", n_boot = 1000L,
+net_boot <- function(data, method = "EBICglasso", n_boot = 1000L,
                               ci = 0.95, labels = NULL, cores = NULL, ...) {
   stopifnot(is.numeric(n_boot), length(n_boot) == 1L, is.finite(n_boot),
             n_boot >= 1, ci > 0, ci < 1)
@@ -67,7 +67,7 @@ bootstrap_network <- function(data, method = "EBICglasso", n_boot = 1000L,
   ut <- if (isTRUE(obs$directed)) row(obs$weights) != col(obs$weights)
         else upper.tri(obs$weights)
   obs_edges <- obs$weights[ut]
-  obs_cent  <- centrality(obs)
+  obs_cent  <- net_centralities(obs)
   cores <- .resolve_cores(cores)
 
   # Draw every resample index in the parent, so the fits are pure functions of
@@ -81,7 +81,7 @@ bootstrap_network <- function(data, method = "EBICglasso", n_boot = 1000L,
                        labels = labels, ...),
       error = function(e) NULL)
     if (is.null(fit)) return(NULL)
-    ct <- centrality(fit)
+    ct <- net_centralities(fit)
     list(edge = fit$weights[ut], strength = ct$strength,
          ei = ct$expected_influence)
   }
@@ -140,9 +140,9 @@ bootstrap_network <- function(data, method = "EBICglasso", n_boot = 1000L,
 #' the stored bootstrap draws, takes the percentile interval of that difference,
 #' and flags the pair `significant` when the interval excludes zero (Epskamp,
 #' Borsboom & Fried 2018). This is the within-network counterpart to the edge
-#' accuracy intervals reported by [bootstrap_network()].
+#' accuracy intervals reported by [net_boot()].
 #'
-#' @param boot A `psychnet_bootstrap` object from [bootstrap_network()].
+#' @param boot A `psychnet_bootstrap` object from [net_boot()].
 #' @param type Quantity to compare: `"edge"` (default), `"strength"`, or
 #'   `"expected_influence"`.
 #' @param ci Confidence level for the difference interval. Defaults to the level
@@ -154,7 +154,7 @@ bootstrap_network <- function(data, method = "EBICglasso", n_boot = 1000L,
 #' set.seed(1)
 #' x <- matrix(stats::rnorm(150 * 5), 150, 5) %*% chol(0.4^abs(outer(1:5, 1:5, "-")))
 #' colnames(x) <- paste0("V", 1:5)
-#' bs <- bootstrap_network(x, n_boot = 100)
+#' bs <- net_boot(x, n_boot = 100)
 #' difference_test(bs, type = "strength")
 #' @export
 difference_test <- function(boot, type = c("edge", "strength",
@@ -164,7 +164,7 @@ difference_test <- function(boot, type = c("edge", "strength",
   draws <- switch(type, edge = boot$edge_boot, strength = boot$str_boot,
                   expected_influence = boot$ei_boot)
   if (is.null(draws))
-    stop("This bootstrap object has no stored draws; re-run bootstrap_network().")
+    stop("This bootstrap object has no stored draws; re-run net_boot().")
   labs <- if (type == "edge") boot$edge_labels else boot$node_labels
   obs <- switch(type, edge = boot$edges$observed,
                 strength = boot$centrality$strength,

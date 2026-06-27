@@ -2,7 +2,7 @@
 # each node is predicted by its neighbours in the fitted network: R-squared for
 # continuous (Gaussian) nodes, and classification accuracy (CC) plus the
 # normalized accuracy (nCC, accuracy above the marginal baseline) for binary
-# nodes. Equivalent in purpose to mgm::predictability().
+# nodes. Equivalent in purpose to mgm::net_predict().
 #
 # For a Gaussian graphical model the value is closed-form from the precision
 # matrix and needs no raw data: the residual variance of node j given the rest
@@ -29,9 +29,9 @@
 #'   `NA` for Gaussian).
 #' @examples
 #' S <- 0.4^abs(outer(1:6, 1:6, "-"))
-#' predictability(ebic_glasso(cor_matrix = S, n = 250))
+#' net_predict(ebic_glasso(cor_matrix = S, n = 250))
 #' @export
-predictability <- function(x, data = NULL, ...) {
+net_predict <- function(x, data = NULL, ...) {
   stopifnot(inherits(x, "psychnet"))
   labs <- x$nodes$label
   p <- nrow(x$nodes)
@@ -86,7 +86,7 @@ predictability <- function(x, data = NULL, ...) {
 
   # --- Gaussian graphical model: closed form from the precision --------------
   if (is.null(x$precision)) {
-    stop(sprintf("predictability() is not defined for a '%s' network.",
+    stop(sprintf("net_predict() is not defined for a '%s' network.",
                  x$method), call. = FALSE)
   }
   theta <- x$precision

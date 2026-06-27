@@ -109,7 +109,7 @@ mgm_fit <- function(data, gamma = 0.25, types = NULL,
   # Scale continuous columns to unit variance up front (mgm::mgm scale = TRUE):
   # a gaussian response on its raw scale inflates its edge weights by its SD, so
   # the gaussian-node magnitudes only match mgm once each continuous variable is
-  # standardized. resp_center/resp_scale record this so predictability() can put
+  # standardized. resp_center/resp_scale record this so net_predict() can put
   # the gaussian response on the same scale as the fitted linear predictor.
   resp_center <- numeric(p); resp_scale <- rep(1, p)
   gix <- which(types == "g")
@@ -170,7 +170,7 @@ mgm_fit <- function(data, gamma = 0.25, types = NULL,
   # Weighted centers/scales, matching the nodewise fits' standardization, so the
   # composite back-transform below is coherent under non-uniform `weights`.
   std <- .standardize(mat, weights)
-  # Composite raw -> standardized-predictor transform for predictability(), which
+  # Composite raw -> standardized-predictor transform for net_predict(), which
   # receives the user's raw data: raw -> (up-front scaling) -> nodewise standard.
   comp_center <- resp_center + resp_scale * std$center
   comp_scale  <- resp_scale * std$scale

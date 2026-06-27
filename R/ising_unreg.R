@@ -52,7 +52,7 @@ MASS_ginv <- function(A, tol = sqrt(.Machine$double.eps)) {
 #' @param labels Optional node labels.
 #' @return A `psychnet` object whose `$weights` is the symmetric weight matrix,
 #'   with `$thresholds` (node intercepts), `$rule`, `$p_values`, `$nodewise`
-#'   (for [predictability()]), and `$kkt` (worst nodewise score residual).
+#'   (for [net_predict()]), and `$kkt` (worst nodewise score residual).
 #' @examples
 #' set.seed(1)
 #' z <- matrix(stats::rnorm(500 * 2), 500, 2)
@@ -112,7 +112,7 @@ ising_sampler <- function(data, rule = c("AND", "OR"), alpha = NULL,
   }
 
   # Raw-scale node thresholds from the (post-pruning) nodewise coefficients, so
-  # they stay consistent with the retained edges and with predictability(): for
+  # they stay consistent with the retained edges and with net_predict(): for
   # B[i, i] = 0, (B %*% center)[i] = sum_{j != i} beta_raw_ij * center_j.
   thresholds <- b0_std - as.numeric(B %*% std$center)
 

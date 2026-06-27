@@ -12,7 +12,7 @@ test_that(".new_psychnet stores a zero-diagonal graph", {
   g <- matrix(0.5, 4, 4); diag(g) <- 1
   obj <- psychnet:::.new_psychnet(g, paste0("V", 1:4), "test", FALSE, 10)
   expect_true(all(diag(obj$graph) == 0))
-  expect_equal(centrality(obj)$strength, rep(1.5, 4))   # 3 * 0.5, no diagonal
+  expect_equal(net_centralities(obj)$strength, rep(1.5, 4))   # 3 * 0.5, no diagonal
 })
 
 test_that(".new_psychnet rejects a label/dimension mismatch", {
@@ -53,23 +53,23 @@ test_that("an isolated binary node gets a logit-scale threshold", {
   expect_true(fit$thresholds[["V0"]] < 0)
 })
 
-test_that("centrality_stability CS is invariant to drop_prop ordering", {
+test_that("net_stability CS is invariant to drop_prop ordering", {
   set.seed(7)
   x <- mk(8, n = 250, p = 5)
-  a <- centrality_stability(x, drop_prop = c(0.1, 0.3, 0.5), iter = 25)
-  b <- centrality_stability(x, drop_prop = c(0.5, 0.1, 0.3), iter = 25)
+  a <- net_stability(x, drop_prop = c(0.1, 0.3, 0.5), iter = 25)
+  b <- net_stability(x, drop_prop = c(0.5, 0.1, 0.3), iter = 25)
   expect_equal(sort(a$cs), sort(b$cs))
 })
 
 test_that("bootstrap keeps all directed edges for relimp", {
   set.seed(9)
   x <- mk(9, n = 150, p = 4)
-  bs <- bootstrap_network(x, method = "relimp", n_boot = 20, cores = 1)
+  bs <- net_boot(x, method = "relimp", n_boot = 20, cores = 1)
   expect_equal(nrow(bs$edges), 4 * 3)                   # p*(p-1) directed edges
 })
 
-test_that("paired nct requires equal group sizes", {
-  expect_error(nct(mk(1, 10, 3), mk(2, 12, 3), iter = 5, paired = TRUE),
+test_that("paired net_compare requires equal group sizes", {
+  expect_error(net_compare(mk(1, 10, 3), mk(2, 12, 3), iter = 5, paired = TRUE),
                "equal size")
 })
 
@@ -82,7 +82,7 @@ test_that("correlation significance does not fabricate edges when df <= 0", {
 })
 
 test_that("centrality rejects a non-square bare matrix", {
-  expect_error(centrality(matrix(1, 2, 3)), "square")
+  expect_error(net_centralities(matrix(1, 2, 3)), "square")
 })
 
 test_that("relimp rejects an indefinite cor_matrix", {
@@ -116,13 +116,13 @@ test_that("relimp accepts a covariance-scale matrix via cov2cor", {
   expect_lt(lmg_certificate(fit), 1e-8)
 })
 
-test_that("nct tolerates a constant column and rejects mismatched columns", {
+test_that("net_compare tolerates a constant column and rejects mismatched columns", {
   set.seed(5)
   a <- cbind(x = stats::rnorm(60), y = stats::rnorm(60), z = 1)  # z constant
   b <- cbind(x = stats::rnorm(60), y = stats::rnorm(60), z = 1)
-  expect_s3_class(nct(a, b, iter = 5), "psychnet_nct")           # no crash
+  expect_s3_class(net_compare(a, b, iter = 5), "psychnet_nct")           # no crash
   d <- cbind(y = stats::rnorm(60), x = stats::rnorm(60), z = 1)  # reordered
-  expect_error(nct(a, d, iter = 5), "same columns")
+  expect_error(net_compare(a, d, iter = 5), "same columns")
 })
 
 test_that("predictability rejects data missing network-node columns", {
@@ -131,7 +131,7 @@ test_that("predictability rejects data missing network-node columns", {
   colnames(b) <- c("A", "B", "C")
   fit <- ising_fit(b)
   wrong <- b; colnames(wrong) <- c("A", "B", "Z")
-  expect_error(predictability(fit, data = wrong), "missing columns")
+  expect_error(net_predict(fit, data = wrong), "missing columns")
 })
 
 test_that("logo errors on a singular clique block instead of returning garbage", {

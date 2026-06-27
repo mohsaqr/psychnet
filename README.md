@@ -47,11 +47,11 @@ excluded), each pure base R and self-certified.
 | `ising_sampler()` | Ising model (unregularized + Wald pruning) | binary |
 | `mgm_fit()` | mixed graphical model | gaussian + binary |
 | `psychnet()` | unified front door (à la `bootnet`) | — |
-| `centrality()` | strength + expected influence | — |
-| `predictability()` | per-node R² / classification accuracy | — |
-| `bootstrap_network()` | edge / centrality accuracy CIs | — |
-| `centrality_stability()` | CS-coefficient (case-dropping) | — |
-| `nct()` | network comparison test | continuous |
+| `net_centralities()` | strength + expected influence | — |
+| `net_predict()` | per-node R² / classification accuracy | — |
+| `net_boot()` | edge / centrality accuracy CIs | — |
+| `net_stability()` | CS-coefficient (case-dropping) | — |
+| `net_compare()` | network comparison test | continuous |
 
 ## Example
 
@@ -64,7 +64,7 @@ fit <- ebic_glasso(cor_matrix = S, n = 250)
 fit                                        # prints nodes, edges, lambda, KKT residual
 
 as.data.frame(fit)                         # tidy edge list (from, to, weight)
-centrality(fit)                            # tidy per-node strength / expected influence
+net_centralities(fit)                            # tidy per-node strength / expected influence
 glasso_kkt(fit$precision, S, fit$lambda)   # the certificate, directly
 ```
 
@@ -72,7 +72,7 @@ glasso_kkt(fit$precision, S, fit$lambda)   # the certificate, directly
 
 - **Base R only.** `Imports: stats`. No `glasso`, `glmnet`, or `qgraph`.
 - **Tidy surface.** Verbs take simple named arguments and return a `psychnet`
-  object with `print`/`summary`/`as.data.frame` methods; `centrality()` returns
+  object with `print`/`summary`/`as.data.frame` methods; `net_centralities()` returns
   a one-row-per-node data frame.
 - **Self-verifying.** Correctness is certified by the mathematics, not by an
   external dependency.

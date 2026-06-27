@@ -5,8 +5,8 @@ mk <- function(seed, n = 150, p = 5) {
   X
 }
 
-test_that("nct returns valid invariants and p-values", {
-  fit <- nct(mk(1), mk(2), iter = 30)
+test_that("net_compare returns valid invariants and p-values", {
+  fit <- net_compare(mk(1), mk(2), iter = 30)
   expect_s3_class(fit, "psychnet_nct")
   expect_true(fit$M$p_value >= 0 && fit$M$p_value <= 1)
   expect_true(fit$S$p_value >= 0 && fit$S$p_value <= 1)
@@ -22,8 +22,8 @@ test_that("nearest-correlation projection returns a valid correlation matrix", {
   expect_gt(min(eigen(P, symmetric = TRUE, only.values = TRUE)$values), -1e-8)
 })
 
-test_that("bootstrap_network returns tidy edge and centrality CIs", {
-  bs <- bootstrap_network(mk(3), n_boot = 40, cores = 1)
+test_that("net_boot returns tidy edge and centrality CIs", {
+  bs <- net_boot(mk(3), n_boot = 40, cores = 1)
   expect_s3_class(bs, "psychnet_bootstrap")
   expect_named(bs$edges,
                c("from", "to", "observed", "mean", "lower", "upper",
@@ -41,15 +41,15 @@ test_that("bootstrap_network returns tidy edge and centrality CIs", {
 })
 
 test_that("parallel bootstrap is byte-identical to the serial run", {
-  set.seed(123); bs1 <- bootstrap_network(mk(3), n_boot = 40, cores = 1)
-  set.seed(123); bs2 <- bootstrap_network(mk(3), n_boot = 40, cores = 2)
+  set.seed(123); bs1 <- net_boot(mk(3), n_boot = 40, cores = 1)
+  set.seed(123); bs2 <- net_boot(mk(3), n_boot = 40, cores = 2)
   expect_equal(bs1$edge_boot, bs2$edge_boot)
   expect_equal(bs1$str_boot, bs2$str_boot)
   expect_equal(bs1$edges, bs2$edges)
 })
 
 test_that("difference_test returns a tidy pairwise table with sound intervals", {
-  bs <- bootstrap_network(mk(3), n_boot = 60, cores = 1)
+  bs <- net_boot(mk(3), n_boot = 60, cores = 1)
   for (ty in c("edge", "strength", "expected_influence")) {
     dt <- difference_test(bs, type = ty)
     expect_named(dt, c("item1", "item2", "value1", "value2", "obs_diff",
@@ -64,7 +64,7 @@ test_that("difference_test returns a tidy pairwise table with sound intervals", 
 })
 
 test_that("difference_test edge difference brackets the observed difference", {
-  bs <- bootstrap_network(mk(7), n_boot = 80, cores = 1)
+  bs <- net_boot(mk(7), n_boot = 80, cores = 1)
   dt <- difference_test(bs, type = "strength")
   # the observed difference lies inside its own bootstrap interval, allowing
   # for a small percentile margin
@@ -72,8 +72,8 @@ test_that("difference_test edge difference brackets the observed difference", {
   expect_gt(mean(inside), 0.8)
 })
 
-test_that("centrality_stability returns CS-coefficients in [0,1]", {
-  cs <- centrality_stability(mk(4), drop_prop = c(0.3, 0.5, 0.7), iter = 15)
+test_that("net_stability returns CS-coefficients in [0,1]", {
+  cs <- net_stability(mk(4), drop_prop = c(0.3, 0.5, 0.7), iter = 15)
   expect_s3_class(cs, "psychnet_stability")
   expect_true(all(cs$cs >= 0 & cs$cs <= 1))
   expect_named(cs$table,

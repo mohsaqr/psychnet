@@ -40,7 +40,7 @@ row. \code{NULL} (default) is unweighted.}
 \value{
 A \code{psychnet} object whose \verb{$weights} is the symmetric weight matrix,
 with \verb{$thresholds} (node intercepts), \verb{$rule}, \verb{$p_values}, \verb{$nodewise}
-(for \code{\link[=predictability]{predictability()}}), and \verb{$kkt} (worst nodewise score residual).
+(for \code{\link[=net_predict]{net_predict()}}), and \verb{$kkt} (worst nodewise score residual).
 }
 \description{
 Estimates an Ising model by \emph{unpenalized} nodewise logistic regression, with

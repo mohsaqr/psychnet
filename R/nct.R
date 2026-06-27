@@ -42,10 +42,10 @@
 #' a <- matrix(stats::rnorm(150 * 5), 150, 5)
 #' b <- matrix(stats::rnorm(150 * 5), 150, 5)
 #' colnames(a) <- colnames(b) <- paste0("V", 1:5)
-#' fit <- nct(a, b, iter = 50)
+#' fit <- net_compare(a, b, iter = 50)
 #' fit
 #' @export
-nct <- function(data1, data2, iter = 1000L, gamma = 0.5,
+net_compare <- function(data1, data2, iter = 1000L, gamma = 0.5,
                 paired = FALSE, abs = TRUE, weighted = TRUE, p_adjust = "none") {
   data1 <- as.matrix(data1)
   data2 <- as.matrix(data2)

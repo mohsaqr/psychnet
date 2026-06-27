@@ -11,7 +11,7 @@ difference_test(
 )
 }
 \arguments{
-\item{boot}{A \code{psychnet_bootstrap} object from \code{\link[=bootstrap_network]{bootstrap_network()}}.}
+\item{boot}{A \code{psychnet_bootstrap} object from \code{\link[=net_boot]{net_boot()}}.}
 
 \item{type}{Quantity to compare: \code{"edge"} (default), \code{"strength"}, or
 \code{"expected_influence"}.}
@@ -30,12 +30,12 @@ centralities differ. For every pair it forms the per-resample difference from
 the stored bootstrap draws, takes the percentile interval of that difference,
 and flags the pair \code{significant} when the interval excludes zero (Epskamp,
 Borsboom & Fried 2018). This is the within-network counterpart to the edge
-accuracy intervals reported by \code{\link[=bootstrap_network]{bootstrap_network()}}.
+accuracy intervals reported by \code{\link[=net_boot]{net_boot()}}.
 }
 \examples{
 set.seed(1)
 x <- matrix(stats::rnorm(150 * 5), 150, 5) \%*\% chol(0.4^abs(outer(1:5, 1:5, "-")))
 colnames(x) <- paste0("V", 1:5)
-bs <- bootstrap_network(x, n_boot = 100)
+bs <- net_boot(x, n_boot = 100)
 difference_test(bs, type = "strength")
 }

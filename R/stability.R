@@ -24,10 +24,10 @@
 #' set.seed(1)
 #' x <- matrix(stats::rnorm(200 * 5), 200, 5) %*% chol(0.4^abs(outer(1:5, 1:5, "-")))
 #' colnames(x) <- paste0("V", 1:5)
-#' cs <- centrality_stability(x, drop_prop = c(0.3, 0.5, 0.7), iter = 20)
+#' cs <- net_stability(x, drop_prop = c(0.3, 0.5, 0.7), iter = 20)
 #' cs$cs
 #' @export
-centrality_stability <- function(data, method = "EBICglasso",
+net_stability <- function(data, method = "EBICglasso",
                                  measures = c("strength", "expected_influence"),
                                  drop_prop = seq(0.1, 0.9, by = 0.1),
                                  iter = 100L, threshold = 0.7, certainty = 0.95,
@@ -42,7 +42,7 @@ centrality_stability <- function(data, method = "EBICglasso",
   n <- nrow(mat)
   if (is.null(labels)) labels <- colnames(mat)
 
-  full_cent <- centrality(psychnet(mat, method = method,
+  full_cent <- net_centralities(psychnet(mat, method = method,
                                            labels = labels, ...))
 
   # corr_storage[[measure]]: iter x length(drop_prop) Spearman correlations.
@@ -59,7 +59,7 @@ centrality_stability <- function(data, method = "EBICglasso",
                          labels = labels, ...),
         error = function(e) NULL)
       if (is.null(fit)) next
-      ct <- centrality(fit)
+      ct <- net_centralities(fit)
       for (m in measures) {
         corr_storage[[m]][it, pj] <- suppressWarnings(
           stats::cor(full_cent[[m]], ct[[m]], method = "spearman"))

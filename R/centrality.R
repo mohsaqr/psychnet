@@ -12,9 +12,9 @@
 #'   signed edge weights).
 #' @examples
 #' S <- 0.4^abs(outer(1:6, 1:6, "-"))
-#' centrality(ebic_glasso(cor_matrix = S, n = 250))
+#' net_centralities(ebic_glasso(cor_matrix = S, n = 250))
 #' @export
-centrality <- function(x, ...) {
+net_centralities <- function(x, ...) {
   if (inherits(x, "psychnet")) {
     g <- x$weights
     labs <- x$nodes$label
