@@ -19,6 +19,14 @@ returns the stationarity (KKT) residual: zero certifies the unique global
 optimum. Every \code{\link[=ebic_glasso]{ebic_glasso()}} result carries this value in \verb{$kkt}.
 }
 
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/mohsaqr/psychnet}
+  \item Report bugs at \url{https://github.com/mohsaqr/psychnet/issues}
+}
+
+}
 \author{
 \strong{Maintainer}: Mohammed Saqr \email{ueflaunit@gmail.com}
 

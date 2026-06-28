@@ -17,6 +17,9 @@ Description: Estimates psychometric network models -- correlation and partial
     objective is reported directly, rather than trusted only because it matches
     an external solver. The R counterpart to the 'psychaj' TypeScript library.
 License: GPL-3
+URL: https://github.com/mohsaqr/psychnet
+BugReports: https://github.com/mohsaqr/psychnet/issues
+Additional_repositories: https://mohsaqr.r-universe.dev
 Encoding: UTF-8
 LazyData: true
 Roxygen: list(markdown = TRUE)

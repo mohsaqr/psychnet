@@ -22,10 +22,9 @@ construct scores (each the mean of that construct's Likert items, range
 }
 }
 \source{
-\emph{Delving into the psychology of Machines: Exploring the structure of
-self-regulated learning via LLM-generated survey responses.} Computers in
-Human Behavior (2025).
-\url{https://www.sciencedirect.com/science/article/pii/S074756322500216X}
+Saqr, M. (2025). Delving into the psychology of Machines: Exploring
+the structure of self-regulated learning via LLM-generated survey responses.
+\emph{Computers in Human Behavior}, 173, 108769. \doi{10.1016/j.chb.2025.108769}
 }
 \usage{
 SRL_GPT
@@ -58,9 +57,7 @@ realistically structured (\code{SRL_GPT}) to strongly "over-coherent"
 \examples{
 # partial-correlation network of the five constructs for one model
 net <- ebic_glasso(SRL_GPT)
+net
 net_centralities(net)
-
-# compare two models' construct networks
-net_compare(SRL_GPT, SRL_Claude, iter = 200)
 }
 \keyword{datasets}

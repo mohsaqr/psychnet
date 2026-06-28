@@ -1,7 +1,7 @@
 # psychnet
 
 Clean-room, base-R psychometric network estimation. The R counterpart to the
-[`psychaj`](https://github.com/mohsaqr/psychaj) TypeScript library.
+`psychaj` TypeScript library.
 
 `psychnet` estimates the cross-sectional network models used in psychometrics —
 correlation, partial correlation, EBIC-regularized Gaussian graphical models
