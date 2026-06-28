@@ -8,7 +8,7 @@ ggm_modselect(
   data = NULL,
   cor_matrix = NULL,
   n = NULL,
-  gamma = 0.5,
+  gamma = 0,
   stepwise = TRUE,
   nlambda = 100L,
   lambda_min_ratio = 0.01,
@@ -27,7 +27,11 @@ ggm_modselect(
 
 \item{n}{Sample size (required when \code{cor_matrix} is supplied).}
 
-\item{gamma}{EBIC hyperparameter. Default 0.5.}
+\item{gamma}{EBIC hyperparameter. Default \code{0}, matching
+\code{qgraph::ggmModSelect()}: because the selected graph is refit with the
+\emph{unregularized} MLE (no edge shrinkage), the extra EBIC penalty is not
+needed, so gamma 0 (plain BIC) is the method's intended setting. (The
+regularized GGMs \code{\link[=ebic_glasso]{ebic_glasso()}} and \code{\link[=huge_network]{huge_network()}} keep gamma 0.5.)}
 
 \item{stepwise}{If \code{TRUE} (default), refine the best glasso-path graph by a
 greedy single-edge add/drop search.}

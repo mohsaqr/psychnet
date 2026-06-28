@@ -70,7 +70,11 @@
 #'   `cor_matrix` is supplied.
 #' @param cor_matrix Optional correlation matrix; if given, `n` is required.
 #' @param n Sample size (required when `cor_matrix` is supplied).
-#' @param gamma EBIC hyperparameter. Default 0.5.
+#' @param gamma EBIC hyperparameter. Default `0`, matching
+#'   `qgraph::ggmModSelect()`: because the selected graph is refit with the
+#'   *unregularized* MLE (no edge shrinkage), the extra EBIC penalty is not
+#'   needed, so gamma 0 (plain BIC) is the method's intended setting. (The
+#'   regularized GGMs [ebic_glasso()] and [huge_network()] keep gamma 0.5.)
 #' @param stepwise If `TRUE` (default), refine the best glasso-path graph by a
 #'   greedy single-edge add/drop search.
 #' @param nlambda Number of glasso penalties scanned for candidate graphs.
@@ -94,7 +98,7 @@
 #' ggm_modselect(cor_matrix = S, n = 250)
 #' @export
 ggm_modselect <- function(data = NULL, cor_matrix = NULL, n = NULL,
-                          gamma = 0.5, stepwise = TRUE, nlambda = 100L,
+                          gamma = 0, stepwise = TRUE, nlambda = 100L,
                           lambda_min_ratio = 0.01, threshold = 0,
                           cor_method = c("pearson", "spearman", "kendall", "auto"),
                           na_method = c("pairwise", "listwise"),
